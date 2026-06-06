@@ -16,8 +16,9 @@ import {
 
 import type { BlindLabel, ModelConfig } from '@/lib/models';
 import {
+  formatConfidencePercent,
+  triageClientSchema,
   triageRequestSchema,
-  triageSchema,
   type TriageResult,
 } from '@/lib/schema';
 import { cn } from '@/lib/utils';
@@ -41,7 +42,21 @@ interface ModelCardProps {
   revealModels: boolean;
   caseText: string;
   runId: number;
+  startDelayMs?: number;
   onStateChange: (state: ModelCardSlotState) => void;
+}
+
+function formatDisplayError(error: Error | undefined): string | undefined {
+  if (!error) {
+    return undefined;
+  }
+
+  const message = error.message || 'Triage request failed.';
+  if (message.includes('undefined') || message.includes('empty')) {
+    return 'Gateway returned an empty response (often a temporary 503). Use Retry when ready.';
+  }
+
+  return message;
 }
 
 const URGENCY_LABELS: Record<NonNullable<TriageResult['urgency']>, string> = {
@@ -70,12 +85,15 @@ export function ModelCard({
   revealModels,
   caseText,
   runId,
+  startDelayMs = 0,
   onStateChange,
 }: ModelCardProps) {
   const startTimeRef = useRef<number | null>(null);
   const [latencyMs, setLatencyMs] = useState<number | undefined>();
   const [finished, setFinished] = useState(false);
   const [finishError, setFinishError] = useState<Error | undefined>();
+
+  const submitRef = useRef<(input: TriageRequest) => void>(() => {});
 
   const handleFinish = useCallback(
     ({
@@ -90,21 +108,29 @@ export function ModelCard({
         startTimeRef.current = null;
       }
 
+      if (schemaError && process.env.NODE_ENV === 'development') {
+        console.error(`[${model.slug}] schema validation:`, schemaError.message);
+      }
+
       setFinishError(schemaError);
       setFinished(schemaError === undefined && result !== undefined);
     },
-    [],
+    [model.slug],
   );
 
   const { object, error, isLoading, submit } = useObject<
-    typeof triageSchema,
+    typeof triageClientSchema,
     TriageResult,
     TriageRequest
   >({
     api: '/api/triage',
-    schema: triageSchema,
+    schema: triageClientSchema,
     onFinish: handleFinish,
   });
+
+  submitRef.current = (input) => {
+    void submit(input);
+  };
 
   const runSubmit = useCallback(() => {
     setFinished(false);
@@ -117,13 +143,18 @@ export function ModelCard({
   useEffect(() => {
     if (runId > 0 && caseText.trim().length >= 10) {
       startTimeRef.current = performance.now();
-      void submit({ case: caseText, model: model.slug });
+      const timer = window.setTimeout(() => {
+        void submit({ case: caseText, model: model.slug });
+      }, startDelayMs);
+
+      return () => window.clearTimeout(timer);
     }
     // Only re-run when the parent bumps runId to trigger a new triage pass.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId]);
 
-  const displayError = error ?? finishError;
+  const rawError = error ?? finishError;
+  const displayError = formatDisplayError(rawError);
 
   useEffect(() => {
     onStateChange({
@@ -131,7 +162,7 @@ export function ModelCard({
       model,
       object,
       isLoading,
-      error: displayError,
+      error: rawError,
       latencyMs,
       finished,
     });
@@ -140,22 +171,21 @@ export function ModelCard({
     model,
     object,
     isLoading,
-    displayError,
+    rawError,
     latencyMs,
     finished,
     onStateChange,
   ]);
 
   const headerLabel = revealModels ? model.label : `Model ${blindLabel}`;
-  const confidence =
-    typeof object?.confidence === 'number' ? object.confidence : undefined;
+  const confidence = formatConfidencePercent(object?.confidence);
 
   return (
     <Card
       className={cn(
         'gap-0 rounded-[14px] border border-[#EEEDEC] bg-white py-0 shadow-none ring-0',
         'animate-in fade-in slide-in-from-bottom-1 fill-mode-both duration-300',
-        displayError && 'border-[#F5C6C6] bg-[#FEF8F8]',
+        rawError && 'border-[#F5C6C6] bg-[#FEF8F8]',
       )}
     >
       <CardHeader className="border-b border-[#EEEDEC] px-4 py-3">
@@ -185,11 +215,9 @@ export function ModelCard({
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3 px-4 py-4">
-        {displayError ? (
+        {rawError ? (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-[#9F2F2D]">
-              {displayError.message || 'Triage request failed.'}
-            </p>
+            <p className="text-sm text-[#9F2F2D]">{displayError}</p>
             <Button
               type="button"
               variant="outline"
@@ -261,7 +289,7 @@ export function ModelCard({
             ? 'Streaming'
             : finished
               ? 'Complete'
-              : displayError
+              : rawError
                 ? 'Error'
                 : 'Idle'}
         </span>

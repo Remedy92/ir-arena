@@ -37,6 +37,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# ai sdk devtools (local captures — may contain prompts/responses)
+.devtools
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

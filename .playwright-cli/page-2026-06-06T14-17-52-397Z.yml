@@ -1,0 +1,32 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - heading "IR Arena" [level=1] [ref=e4]
+    - generic [ref=e5]:
+      - generic [ref=e6]: Synthetic data
+      - generic [ref=e7]:
+        - generic [ref=e8]: Blinded
+        - switch "Toggle model reveal" [ref=e9]
+        - checkbox [ref=e10]
+        - generic [ref=e11]: Reveal
+  - paragraph [ref=e13]: Synthetic cases only — research demo, not for clinical use.
+  - main [ref=e14]:
+    - generic [ref=e15]:
+      - heading "Which model calls the bleed ?" [level=1] [ref=e16]:
+        - text: Which model calls the
+        - emphasis [ref=e17]: bleed
+        - text: "?"
+      - paragraph [ref=e19]: Four models triage the same synthetic IR case in parallel. Compare decisions blind, then reveal who called it.
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - generic [ref=e23]: Case vignette
+        - textbox "Case vignette" [ref=e24]:
+          - /placeholder: Paste or edit a synthetic IR triage vignette…
+          - text: A 34-year-old woman was struck by a motorcycle and arrives with an unstable Tile C pelvic ring fracture. Despite two units of packed red cells, she remains hypotensive at 80/55 mmHg with tachycardia. FAST is negative for intraperitoneal free fluid. CT angiography shows a focal arterial blush adjacent to the left internal iliac branch territory, concerning for pelvic arterial hemorrhage. She is intubated, on vasopressors, and coagulopathic with lactate 4.2.
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - generic [ref=e27]: Preset
+          - combobox "Preset" [ref=e28]:
+            - generic [ref=e29]: pelvic-trauma
+            - img: ▼
+          - textbox [ref=e30]: pelvic-trauma
+        - button "Run Triage" [ref=e31]

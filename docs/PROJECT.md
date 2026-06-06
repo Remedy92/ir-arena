@@ -75,11 +75,35 @@ design.md          visual spec
 AI_GATEWAY_API_KEY=   # only required secret
 ```
 
+## Debugging (AI SDK DevTools)
+
+Local only — captures raw gateway request/response to `.devtools/generations.json`.
+
+```bash
+# Terminal 1
+pnpm dev
+
+# Terminal 2 (from ir-arena/)
+pnpm devtools
+# → open http://localhost:4983
+```
+
+`/api/triage` uses `runtime = 'nodejs'` in development so DevTools middleware can write captures. `maxRetries: 0` on all routes (no silent re-billing).
+
+### Failure diagnosis (2026-06-06 research, no re-test)
+
+| Model | Root cause | Fix applied |
+|-------|------------|-------------|
+| GPT-5.5 | Client `useObject` final Zod validation (subtle type/enum drift) | `z.coerce.number`, enum normalize, dev console logging |
+| Gemini 3.5 Flash | Empty gateway stream under parallel load | Staggered start (+1s), `maxRetries: 0`, manual Retry only |
+| Gemma substitute | Wrong JSON keys (non-schema model) | Server `normalizeTriageInput` + `GEMMA_EXTRA_PROMPT` |
+
 ## Commands
 
 ```bash
 cd /Users/lucasvanhoutven/Projects/ir-arena
 cp .env.example .env.local
 pnpm i && pnpm dev
+pnpm devtools   # optional viewer at :4983
 pnpm build
 ```

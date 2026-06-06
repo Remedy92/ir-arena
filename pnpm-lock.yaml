@@ -48,6 +48,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@ai-sdk/devtools':
+        specifier: ^0.0.18
+        version: 0.0.18
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.0
@@ -77,6 +80,11 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@ai-sdk/devtools@0.0.18':
+    resolution: {integrity: sha512-0J25Q7occrkMJM1MrP0KeR8XNdGGKNgzxhOLfxBe/qZBQP6yXgV4H5Gf2DnDC3UgXDBJBskH9nh23doCo2Pebw==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   '@ai-sdk/gateway@3.0.125':
     resolution: {integrity: sha512-tocl7cUDoTpmhZqeW8XVKMMznZQwwQAEunF0VyNKmf64qt8NbMIAEiet/vRMzh7Jr9WcFeb6EZjmhLTP4Qx2Og==}
@@ -3106,6 +3114,12 @@ packages:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
 snapshots:
+
+  '@ai-sdk/devtools@0.0.18':
+    dependencies:
+      '@ai-sdk/provider': 3.0.10
+      '@hono/node-server': 1.19.14(hono@4.12.23)
+      hono: 4.12.23
 
   '@ai-sdk/gateway@3.0.125(zod@4.4.3)':
     dependencies:

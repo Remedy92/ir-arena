@@ -18,6 +18,14 @@ import { shuffleModels } from '@/lib/shuffle';
 
 const DEFAULT_PRESET = PRESET_CASES[1];
 
+function getModelStartDelayMs(model: ModelConfig, index: number): number {
+  const baseDelay = index * 500;
+  if (model.id === 'gemini') {
+    return baseDelay + 1000;
+  }
+  return baseDelay;
+}
+
 type ShuffledSlot = {
   model: ModelConfig;
   blindLabel: BlindLabel;
@@ -106,7 +114,7 @@ export default function Home() {
         {runId > 0 && shuffledSlots.length > 0 ? (
           <section className="mx-auto w-full max-w-7xl px-4 pb-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {shuffledSlots.map((slot) => (
+              {shuffledSlots.map((slot, index) => (
                 <ModelCard
                   key={`${slot.blindLabel}-${runId}`}
                   blindLabel={slot.blindLabel}
@@ -114,6 +122,7 @@ export default function Home() {
                   revealModels={revealModels}
                   caseText={caseText}
                   runId={runId}
+                  startDelayMs={getModelStartDelayMs(slot.model, index)}
                   onStateChange={makeSlotStateHandler(slot.blindLabel)}
                 />
               ))}

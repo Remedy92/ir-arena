@@ -1,0 +1,92 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - heading "IR Arena" [level=1] [ref=e4]
+      - generic [ref=e5]:
+        - generic [ref=e6]: Synthetic data
+        - generic [ref=e7]:
+          - generic [ref=e8]: Blinded
+          - switch "Toggle model reveal" [checked] [active] [ref=e9]
+          - checkbox [checked] [ref=e10]
+          - generic [ref=e11]: Reveal
+    - paragraph [ref=e13]: Synthetic cases only — research demo, not for clinical use.
+    - main [ref=e14]:
+      - generic [ref=e15]:
+        - heading "Which model calls the bleed ?" [level=1] [ref=e16]:
+          - text: Which model calls the
+          - emphasis [ref=e17]: bleed
+          - text: "?"
+        - paragraph [ref=e19]: Four models triage the same synthetic IR case in parallel. Compare decisions blind, then reveal who called it.
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]: Case vignette
+          - textbox "Case vignette" [ref=e24]:
+            - /placeholder: Paste or edit a synthetic IR triage vignette…
+            - text: A 34-year-old woman was struck by a motorcycle and arrives with an unstable Tile C pelvic ring fracture. Despite two units of packed red cells, she remains hypotensive at 80/55 mmHg with tachycardia. FAST is negative for intraperitoneal free fluid. CT angiography shows a focal arterial blush adjacent to the left internal iliac branch territory, concerning for pelvic arterial hemorrhage. She is intubated, on vasopressors, and coagulopathic with lactate 4.2.
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - generic [ref=e27]: Preset
+            - combobox "Preset" [ref=e28]:
+              - generic [ref=e29]: pelvic-trauma
+              - img: ▼
+            - textbox [ref=e30]: pelvic-trauma
+          - button "Run Triage" [ref=e31]
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - generic [ref=e47]: Claude Opus 4.8
+            - generic [ref=e49]:
+              - generic [ref=e50]:
+                - generic [ref=e51]: Embolization
+                - generic [ref=e52]: Immediate
+              - generic [ref=e53]:
+                - generic [ref=e54]: Target vessel
+                - paragraph [ref=e55]: Left internal iliac artery (anterior division branches, likely internal pudendal/obturator)
+              - generic [ref=e56]:
+                - generic [ref=e57]: Embolic agent
+                - paragraph [ref=e58]: Gelfoam slurry (temporary), with coils for focal pseudoaneurysm if identified
+              - generic [ref=e59]:
+                - generic [ref=e60]: Alternative plan
+                - paragraph [ref=e61]: If diffuse multifocal bleeding or pelvic instability dominates, proceed to non-selective bilateral internal iliac artery embolization with Gelfoam; consider REBOA Zone III as bridge and preperitoneal packing/external fixation by trauma surgery if angiographic control fails
+              - generic [ref=e62]:
+                - generic [ref=e63]: Rationale
+                - paragraph [ref=e64]: Hemodynamically unstable Tile C pelvic fracture with negative FAST and CTA-documented arterial blush near the left internal iliac territory strongly points to pelvic arterial hemorrhage requiring immediate transcatheter control. Negative FAST makes intraperitoneal source unlikely, so source control is best achieved angiographically rather than by laparotomy. Gelfoam is preferred given coagulopathy and the need for rapid proximal-to-distal control of multiple potential branches, with coils reserved for a discrete pseudoaneurysm. Concurrent damage-control resuscitation, MTP activation, and pelvic binder/external fixation should continue.
+              - generic [ref=e138]:
+                - generic [ref=e139]: Red flags
+                - list [ref=e140]:
+                  - listitem [ref=e141]: Persistent hypotension on vasopressors despite transfusion
+                  - listitem [ref=e142]: Coagulopathy with lactate 4.2 indicating ongoing shock
+                  - listitem [ref=e143]: Possible concurrent venous/bony bleeding not controlled by embolization
+                  - listitem [ref=e144]: Risk of non-target embolization and gluteal/pelvic ischemia
+              - generic [ref=e67]: 88%
+            - generic [ref=e68]:
+              - generic [ref=e69]: 8965 ms
+              - generic [ref=e70]: Complete
+          - generic [ref=e71]:
+            - generic [ref=e74]: GPT-5.5
+            - generic [ref=e77]:
+              - paragraph [ref=e147]: "Type validation failed: Value: {\"decision\":\"EMBOLIZATION\",\"urgency\":\"IMMEDIATE\",\"targetVessel\":\"Left superior gluteal artery, a posterior-division branch of the left internal iliac artery\",\"embolicAgent\":\"Superselective n-BCA glue embolization mixed with Lipiodol, approximately 1:3\",\"alternativePlan\":\"Maintain pelvic binder/resuscitation and proceed directly to pelvic angiography; if superselective catheterization is not rapidly achievable, perform nonselective left internal iliac embolization with gelfoam slurry. If IR cannot be initiated immediately or hemodynamics collapse, proceed to trauma surgery for pelvic packing/external fixation with possible REBOA as a bridge.\",\"rationale\":\"This is life-threatening pelvic arterial hemorrhage in an unstable Tile C pelvic fracture with negative FAST and CTA arterial blush. The likely culprit is a left internal iliac branch, most consistent with superior gluteal artery injury in a posterior pelvic ring disruption. Immediate angiography and embolization is indicated because she remains hypotensive despite transfusion and is already on vasopressors. n-BCA is preferred here because it provides rapid durable occlusion and is effective in coagulopathy.\",\"redFlags\":[\"Persistent hypotension despite packed red cell transfusion\",\"Vasopressor requirement\",\"Coagulopathy\",\"Elevated lactate indicating shock\",\"Unstable Tile C pelvic ring fracture\",\"CTA arterial blush in the internal iliac territory\"],\"confidence\":0.86}. Error message: [ { \"origin\": \"array\", \"code\": \"too_big\", \"maximum\": 4, \"inclusive\": true, \"path\": [ \"redFlags\" ], \"message\": \"Too big: expected array to have <=4 items\" } ]"
+              - button "Retry" [ref=e148]
+            - generic [ref=e95]:
+              - generic [ref=e96]: 7926 ms
+              - generic [ref=e97]: Error
+          - generic [ref=e98]:
+            - generic [ref=e101]: Gemini 3.5 Flash
+            - generic [ref=e104]:
+              - paragraph [ref=e150]: "Type validation failed: Value: undefined. Error message: [ { \"expected\": \"object\", \"code\": \"invalid_type\", \"path\": [], \"message\": \"Invalid input: expected object, received undefined\" } ]"
+              - button "Retry" [ref=e151]
+            - generic [ref=e121]:
+              - generic [ref=e122]: 24393 ms
+              - generic [ref=e123]: Error
+          - generic [ref=e124]:
+            - generic [ref=e127]: MedGemma 1.5
+            - generic [ref=e129]:
+              - paragraph [ref=e130]: "Type validation failed: Value: {\"diagnosis\":\"Pelvic arterial hemorrhage secondary to Tile C pelvic fracture\",\"intervention\":\"Transcatheter Arterial Embolization (TAE)\",\"target_vessel\":\"Left internal iliac artery\",\"embolic_agent\":\"Gelfoam particles\",\"priority\":\"Emergent\"}. Error message: [ { \"code\": \"invalid_value\", \"values\": [ \"EMBOLIZATION\", \"SURGERY\", \"CONSERVATIVE\", \"IMAGING_FIRST\" ], \"path\": [ \"decision\" ], \"message\": \"Invalid option: expected one of \\\"EMBOLIZATION\\\"|\\\"SURGERY\\\"|\\\"CONSERVATIVE\\\"|\\\"IMAGING_FIRST\\\"\" }, { \"code\": \"invalid_value\", \"values\": [ \"IMMEDIATE\", \"URGENT_2H\", \"SEMI_ELECTIVE\" ], \"path\": [ \"urgency\" ], \"message\": \"Invalid option: expected one of \\\"IMMEDIATE\\\"|\\\"URGENT_2H\\\"|\\\"SEMI_ELECTIVE\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"targetVessel\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"embolicAgent\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"alternativePlan\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"rationale\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"array\", \"code\": \"invalid_type\", \"path\": [ \"redFlags\" ], \"message\": \"Invalid input: expected array, received undefined\" }, { \"expected\": \"number\", \"code\": \"invalid_type\", \"path\": [ \"confidence\" ], \"message\": \"Invalid input: expected number, received undefined\" } ]"
+              - button "Retry" [ref=e131]
+            - generic [ref=e132]:
+              - generic [ref=e133]: 2068 ms
+              - generic [ref=e134]: Error
+        - paragraph [ref=e135]: MedGemma unavailable via gateway — substituted with Gemma 4 31B
+  - button "Open Next.js Dev Tools" [ref=e37] [cursor=pointer]:
+    - img [ref=e38]
+  - alert [ref=e136]
