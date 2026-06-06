@@ -4,8 +4,8 @@ Central doc for architecture, progress, and deployment.
 
 **Last updated:** 2026-06-06  
 **Orchestrator:** main agent  
-**Repo:** https://github.com/Remedy92/ir-arena (pending)  
-**Deploy:** Vercel (pending)
+**Repo:** https://github.com/Remedy92/ir-arena  
+**Production:** https://ir-arena.vercel.app
 
 ## Architecture
 
@@ -34,35 +34,52 @@ User → CaseInput → Run
 
 | Phase | Owner | Status | Notes |
 |-------|-------|--------|-------|
-| 0 Bootstrap | orchestrator | ✅ | Next.js 16, Tailwind v4, shadcn, ai SDK |
-| 1 Data layer | subagent | 🔄 | lib/schema, cases, models, shuffle, consensus |
-| 2 API | subagent | 🔄 | /api/triage edge route |
-| 3 UI | subagent | 🔄 | components + page shell |
-| 4 Integration | orchestrator | ⏳ | wire parallel, build gate |
-| 5 Ship | orchestrator | ⏳ | GitHub + Vercel |
+| 0 Bootstrap | orchestrator | ✅ | Next.js 16, Tailwind v4, shadcn, AI SDK v6 |
+| 1 Data layer | subagent | ✅ | lib/schema, cases, models, shuffle, consensus |
+| 2 API | subagent | ✅ | Edge /api/triage, streamText + Output.object |
+| 3 UI | subagent | ✅ | All components per design.md |
+| 4 Integration | orchestrator | ✅ | page.tsx wired, pnpm build passes |
+| 5 Ship | orchestrator | ✅ | GitHub + Vercel prod deploy |
+
+## Subagent assignments
+
+| Subagent ID | Phase | Output |
+|-------------|-------|--------|
+| 019e9d36-1961-7792-b09b-6175dcf9fde5 | 1 | lib/* data layer |
+| 019e9d36-1961-7792-b09b-618c7d46dade | 2 | app/api/triage/route.ts |
+| 019e9d36-1961-7792-b09b-619395c4f534 | 3 | components/* UI |
 
 ## File map
 
 ```
 app/
-  layout.tsx       fonts + TooltipProvider
-  globals.css      design tokens
+  layout.tsx       Newsreader + Inter + Geist Mono, TooltipProvider
+  globals.css      design tokens (#FCFAF8 canvas)
   page.tsx         orchestration shell
-  api/triage/      streaming route
-components/        UI
-lib/               schema, models, cases, consensus
+  api/triage/      Edge streaming route
+components/        UI (top-bar, hero, case-input, model-card, consensus)
+lib/               schema, models, cases, consensus, shuffle
 design.md          visual spec
 ```
 
 ## Demo script (supervisor)
 
-1. Open app → select preset **#2 Pelvic trauma**
-2. Click **Run triage** (blinded A–D)
+1. Open https://ir-arena.vercel.app → preset **#2 Pelvic trauma** is pre-selected
+2. Click **Run Triage** (blinded A–D)
 3. Watch 4 cards stream in parallel
-4. Toggle **Reveal models** → read consensus strip
+4. Toggle **Reveal models** → read **Consensus** strip
 
 ## Env
 
 ```bash
 AI_GATEWAY_API_KEY=   # only required secret
+```
+
+## Commands
+
+```bash
+cd /Users/lucasvanhoutven/Projects/ir-arena
+cp .env.example .env.local
+pnpm i && pnpm dev
+pnpm build
 ```
