@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" fill="none">
+  <rect width="1200" height="675" fill="#FCFAF8"/>
+  <rect x="0" y="0" width="1200" height="56" fill="#FCFAF8" stroke="#EEEDEC"/>
+  <text x="24" y="36" font-family="Georgia, serif" font-size="20" fill="#67625B">IR Arena</text>
+  <text x="600" y="140" text-anchor="middle" font-family="Georgia, serif" font-size="36" fill="#67625B">Which model calls the <tspan font-style="italic" fill="#2E2B29">bleed</tspan>?</text>
+  <rect x="200" y="200" width="800" height="80" rx="14" fill="#FFFFFF" stroke="#EEEDEC"/>
+  <rect x="200" y="320" width="185" height="280" rx="14" fill="#FFFFFF" stroke="#EEEDEC"/>
+  <rect x="405" y="320" width="185" height="280" rx="14" fill="#FFFFFF" stroke="#EEEDEC"/>
+  <rect x="610" y="320" width="185" height="280" rx="14" fill="#FFFFFF" stroke="#EEEDEC"/>
+  <rect x="815" y="320" width="185" height="280" rx="14" fill="#FFFFFF" stroke="#EEEDEC"/>
+  <text x="292" y="350" text-anchor="middle" font-family="system-ui" font-size="14" fill="#2E2B29">Model A</text>
+  <text x="497" y="350" text-anchor="middle" font-family="system-ui" font-size="14" fill="#2E2B29">Model B</text>
+  <text x="702" y="350" text-anchor="middle" font-family="system-ui" font-size="14" fill="#2E2B29">Model C</text>
+  <text x="907" y="350" text-anchor="middle" font-family="system-ui" font-size="14" fill="#2E2B29">Model D</text>
+  <text x="600" y="640" text-anchor="middle" font-family="system-ui" font-size="12" fill="#67625B">Screenshot placeholder — run pnpm dev to capture live UI</text>
+</svg>
