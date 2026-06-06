@@ -19,8 +19,12 @@ interface DecisionBadgeProps {
   className?: string;
 }
 
+function isDecision(value: string | undefined): value is Decision {
+  return value !== undefined && value in DECISION_STYLES;
+}
+
 export function DecisionBadge({ decision, className }: DecisionBadgeProps) {
-  if (!decision) {
+  if (!isDecision(decision)) {
     return (
       <span
         className={cn(
@@ -28,7 +32,7 @@ export function DecisionBadge({ decision, className }: DecisionBadgeProps) {
           className,
         )}
       >
-        —
+        {decision ?? '—'}
       </span>
     );
   }

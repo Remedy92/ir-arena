@@ -75,11 +75,12 @@ export function ModelCard({
   const startTimeRef = useRef<number | null>(null);
   const [latencyMs, setLatencyMs] = useState<number | undefined>();
   const [finished, setFinished] = useState(false);
+  const [finishError, setFinishError] = useState<Error | undefined>();
 
   const handleFinish = useCallback(
     ({
       object: result,
-      error: finishError,
+      error: schemaError,
     }: {
       object: TriageResult | undefined;
       error: Error | undefined;
@@ -89,7 +90,8 @@ export function ModelCard({
         startTimeRef.current = null;
       }
 
-      setFinished(finishError === undefined && result !== undefined);
+      setFinishError(schemaError);
+      setFinished(schemaError === undefined && result !== undefined);
     },
     [],
   );
@@ -106,6 +108,7 @@ export function ModelCard({
 
   const runSubmit = useCallback(() => {
     setFinished(false);
+    setFinishError(undefined);
     setLatencyMs(undefined);
     startTimeRef.current = performance.now();
     void submit({ case: caseText, model: model.slug });
@@ -120,13 +123,15 @@ export function ModelCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId]);
 
+  const displayError = error ?? finishError;
+
   useEffect(() => {
     onStateChange({
       blindLabel,
       model,
       object,
       isLoading,
-      error,
+      error: displayError,
       latencyMs,
       finished,
     });
@@ -135,7 +140,7 @@ export function ModelCard({
     model,
     object,
     isLoading,
-    error,
+    displayError,
     latencyMs,
     finished,
     onStateChange,
@@ -150,7 +155,7 @@ export function ModelCard({
       className={cn(
         'gap-0 rounded-[14px] border border-[#EEEDEC] bg-white py-0 shadow-none ring-0',
         'animate-in fade-in slide-in-from-bottom-1 fill-mode-both duration-300',
-        error && 'border-[#F5C6C6] bg-[#FEF8F8]',
+        displayError && 'border-[#F5C6C6] bg-[#FEF8F8]',
       )}
     >
       <CardHeader className="border-b border-[#EEEDEC] px-4 py-3">
@@ -180,10 +185,10 @@ export function ModelCard({
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3 px-4 py-4">
-        {error ? (
+        {displayError ? (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-[#9F2F2D]">
-              {error.message || 'Triage request failed.'}
+              {displayError.message || 'Triage request failed.'}
             </p>
             <Button
               type="button"
@@ -252,7 +257,13 @@ export function ModelCard({
               : '—'}
         </span>
         <span className="text-[11px] text-[#67625B]">
-          {isLoading ? 'Streaming' : finished ? 'Complete' : 'Idle'}
+          {isLoading
+            ? 'Streaming'
+            : finished
+              ? 'Complete'
+              : displayError
+                ? 'Error'
+                : 'Idle'}
         </span>
       </CardFooter>
     </Card>
