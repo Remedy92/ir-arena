@@ -57,6 +57,16 @@ export function formatDisplayError(error: Error | undefined): string | undefined
   const message = error.message || 'Triage request failed.';
   const lower = message.toLowerCase();
 
+  // Auth / budget rejections come back as non-2xx responses, surfaced by
+  // useObject as Error(message = response body text). Classify these FIRST so
+  // they read clearly and are never mistaken for an empty-stream or schema miss.
+  if (lower.includes('unauthorized') || lower.includes('401')) {
+    return 'Session expired — please sign in again to run this model.';
+  }
+  if (lower.includes('budget_exceeded') || lower.includes('spend cap')) {
+    return 'Spend cap reached for your account — this model was not run.';
+  }
+
   // An entirely-empty stream (no object produced at all) is a gateway/provider
   // failure — a 503, a timeout, or the model being unreachable through the
   // gateway (e.g. no Zero-Data-Retention provider for the pinned provider). This

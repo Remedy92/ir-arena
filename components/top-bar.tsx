@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 
+import { AuthControl } from '@/components/auth-control';
 import { Badge } from '@/components/ui/badge';
 
 interface TopBarProps {
@@ -68,6 +69,8 @@ export function TopBar({ mode, isRunning = false }: TopBarProps) {
             aria-label="Triage running"
           />
         ) : null}
+
+        <AuthControl />
       </div>
     </header>
   );
