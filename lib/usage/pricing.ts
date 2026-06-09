@@ -1,5 +1,7 @@
 import { gateway } from 'ai';
 
+import { applyMarkup } from '@/lib/billing';
+
 const MICRO_USD_PER_USD = 1_000_000;
 
 // Conservative token bounds for one triage call: input covers a large structured
@@ -64,22 +66,27 @@ async function loadPricing(): Promise<Map<string, Pricing>> {
 }
 
 /**
- * Worst-case cost CEILING for one triage call, in micro-USD. Computed from the
- * gateway's LIVE per-token pricing so the reservation is always >= the real cost
- * — the invariant the hard $0.05 cap depends on (an under-reservation could let a
- * call settle above the cap). Falls back to a static per-slug map, then a high
- * default, if pricing can't be fetched.
+ * Worst-case cost CEILING for one triage call, in CUSTOMER micro-USD (raw gateway
+ * cost × BILLING_MARKUP). Computed from the gateway's LIVE per-token pricing so the
+ * reservation is always >= the real charge — the invariant the wallet balance
+ * depends on (an under-reservation could let a call settle above the balance).
+ * Falls back to a static per-slug map, then a high default, if pricing can't be
+ * fetched. The markup is applied last so ceiling and settled charge use the same
+ * multiplier and stay consistent.
  *
- * Note: with a $0.05 cap, frontier models legitimately exceed the cap in a single
- * call (e.g. Opus-4 ≈ $0.23), so a fresh user's reservation for them is rejected
- * outright — that is correct, intended enforcement, not a bug.
+ * Note: against the $0.05 free-trial balance, frontier models legitimately exceed
+ * it in a single call (e.g. Opus-4 ≈ $0.23 raw, more after markup), so a fresh
+ * user's reservation for them is rejected outright until they top up — that is
+ * correct, intended enforcement, not a bug.
  */
 export async function getCeilingMicroUsd(modelSlug: string): Promise<number> {
   const pricing = (await loadPricing()).get(modelSlug);
   if (pricing) {
     const usd =
       pricing.input * MAX_INPUT_TOKENS + pricing.output * MAX_OUTPUT_TOKENS;
-    return Math.ceil(usd * MICRO_USD_PER_USD);
+    return applyMarkup(Math.ceil(usd * MICRO_USD_PER_USD));
   }
-  return STATIC_FALLBACK_MICRO_USD[modelSlug] ?? DEFAULT_FALLBACK_MICRO_USD;
+  return applyMarkup(
+    STATIC_FALLBACK_MICRO_USD[modelSlug] ?? DEFAULT_FALLBACK_MICRO_USD,
+  );
 }

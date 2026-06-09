@@ -4,20 +4,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { AddFunds } from '@/components/add-funds';
 import { authClient } from '@/lib/auth/client';
-
-const MICRO_USD_PER_CENT = 10_000;
-
-function formatRemaining(remainingMicroUsd: number): string {
-  const cents = remainingMicroUsd / MICRO_USD_PER_CENT;
-  // One decimal, but show "0¢" rather than "0.0¢" when exhausted.
-  return cents <= 0 ? '0¢ left' : `${cents.toFixed(1)}¢ left`;
-}
+import { formatBalance } from '@/lib/billing';
 
 /**
- * Top-bar auth affordance: a "Sign in" link when logged out, or the remaining
- * spend budget + a "Sign out" button when logged in. Lives in the shared TopBar
- * so it appears on both the public Setup page and the gated Run page.
+ * Top-bar auth affordance: a "Sign in" link when logged out, or the prepaid
+ * wallet balance + "Add funds" + "Sign out" when logged in. Lives in the shared
+ * TopBar so it appears on both the public Setup page and the gated Run page.
  */
 export function AuthControl() {
   const router = useRouter();
@@ -31,18 +25,35 @@ export function AuthControl() {
       return;
     }
     let cancelled = false;
-    fetch('/api/budget')
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data) => {
-        if (!cancelled && data) {
-          setRemainingMicroUsd(data.remainingMicroUsd);
-        }
-      })
-      .catch(() => {
-        /* budget indicator is best-effort */
-      });
+    const load = () =>
+      fetch('/api/budget')
+        .then((response) => (response.ok ? response.json() : null))
+        .then((data) => {
+          if (!cancelled && data) {
+            setRemainingMicroUsd(data.remainingMicroUsd);
+          }
+        })
+        .catch(() => {
+          /* budget indicator is best-effort */
+        });
+
+    load();
+
+    // Returning from Stripe Checkout lands on /run?topup=success. The credit
+    // arrives via the webhook, which can trail the redirect by a beat — re-poll a
+    // few times so the new balance shows without a manual refresh.
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    if (new URLSearchParams(window.location.search).get('topup') === 'success') {
+      timers.push(
+        setTimeout(load, 2_000),
+        setTimeout(load, 5_000),
+        setTimeout(load, 10_000),
+      );
+    }
+
     return () => {
       cancelled = true;
+      timers.forEach(clearTimeout);
     };
   }, [session]);
 
@@ -72,11 +83,12 @@ export function AuthControl() {
       {remainingMicroUsd !== null ? (
         <span
           className="hidden font-mono text-[11px] tabular-nums text-[#67625B] sm:inline"
-          title="Remaining model-spend budget for your account"
+          title="Prepaid wallet balance for your account"
         >
-          {formatRemaining(remainingMicroUsd)}
+          {formatBalance(remainingMicroUsd)}
         </span>
       ) : null}
+      <AddFunds />
       <button
         type="button"
         onClick={handleSignOut}

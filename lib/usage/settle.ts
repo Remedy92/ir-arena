@@ -1,5 +1,6 @@
 import { gateway } from 'ai';
 
+import { applyMarkup } from '@/lib/billing';
 import { sql } from '@/lib/db';
 
 const MICRO_USD_PER_USD = 1_000_000;
@@ -70,7 +71,10 @@ export async function settleUsage({
     if (generationId) {
       const result = await fetchActualMicroUsd(generationId);
       if (result.settled) {
-        actualMicroUsd = result.microUsd;
+        // Charge the customer the raw gateway cost times our markup. The ceiling
+        // (fail-safe path below) is already marked up in getCeilingMicroUsd, so
+        // both paths debit the wallet in the same customer micro-USD unit.
+        actualMicroUsd = applyMarkup(result.microUsd);
         status = 'settled';
       } else {
         // A generation happened but its cost is unknown — charge the ceiling.
