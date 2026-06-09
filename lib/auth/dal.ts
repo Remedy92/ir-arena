@@ -1,6 +1,6 @@
 import { cache } from 'react';
 
-import { auth } from '@/lib/auth/server';
+import { getAuth } from '@/lib/auth/server';
 
 /**
  * Authoritative server-side session check, memoized per request (React `cache`).
@@ -9,6 +9,6 @@ import { auth } from '@/lib/auth/server';
  * Returns the session (with `session.user.id`) or null.
  */
 export const verifySession = cache(async () => {
-  const { data: session } = await auth.getSession();
+  const { data: session } = await getAuth().getSession();
   return session ?? null;
 });

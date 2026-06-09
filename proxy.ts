@@ -1,4 +1,17 @@
-import { auth } from '@/lib/auth/server';
+import type { NextRequest } from 'next/server';
+
+import { getAuth } from '@/lib/auth/server';
+
+type RunGuard = (request: NextRequest) => Promise<Response>;
+
+let protectRun: RunGuard | undefined;
+
+function getProtectRun(): RunGuard {
+  if (!protectRun) {
+    protectRun = getAuth().middleware({ loginUrl: '/sign-in' });
+  }
+  return protectRun;
+}
 
 /**
  * Next.js 16 proxy (the renamed `middleware` convention). Optimistic gate for the
@@ -10,7 +23,9 @@ import { auth } from '@/lib/auth/server';
  * return JSON 401s rather than HTML redirects, and the advisory /api/models
  * endpoint stays reachable for the public model picker.
  */
-export default auth.middleware({ loginUrl: '/sign-in' });
+export default function proxy(request: NextRequest) {
+  return getProtectRun()(request);
+}
 
 export const config = {
   matcher: ['/run', '/run/:path*'],
