@@ -28,13 +28,6 @@ const CONSENSUS_FIELDS: ConsensusField[] = [
 
 const ENUM_FIELDS = new Set<ConsensusField>(['decision', 'urgency']);
 
-const EMPTY_VALUES: Record<BlindLabel, string | undefined> = {
-  A: undefined,
-  B: undefined,
-  C: undefined,
-  D: undefined,
-};
-
 function normalizeForAgreement(field: ConsensusField, value: string): string {
   if (ENUM_FIELDS.has(field)) {
     return value;
@@ -63,14 +56,11 @@ function valuesAgree(
 
 export function computeConsensus(results: ConsensusInput[]): ConsensusRow[] {
   return CONSENSUS_FIELDS.map((field) => {
-    const values: Record<BlindLabel, string | undefined> = {
-      ...EMPTY_VALUES,
-    };
+    const values: Record<BlindLabel, string | undefined> = {};
 
     for (const { label, result, finished } of results) {
-      if (finished && result !== undefined) {
-        values[label] = result[field];
-      }
+      values[label] =
+        finished && result !== undefined ? result[field] : undefined;
     }
 
     return {

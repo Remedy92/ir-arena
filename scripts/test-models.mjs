@@ -2,13 +2,10 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { streamText, Output } from 'ai';
 import { createTriageModel } from '../lib/ai-model.ts';
-import { MODELS } from '../lib/models.ts';
+import { MODEL_CATALOG } from '../lib/models.ts';
 import { triageSchema } from '../lib/schema.ts';
 import { SYSTEM_PROMPT } from '../lib/prompts.ts';
-import {
-  buildGatewayProviderOptions,
-  STUDY_GENERATION_SETTINGS,
-} from '../lib/study-settings.ts';
+import { STUDY_GENERATION_SETTINGS } from '../lib/study-settings.ts';
 
 // Load .env.local
 const envPath = resolve(process.cwd(), '.env.local');
@@ -31,7 +28,6 @@ async function testModel(slug) {
       system: SYSTEM_PROMPT,
       prompt: CASE_TEXT,
       output: Output.object({ schema: triageSchema }),
-      providerOptions: buildGatewayProviderOptions(slug),
       ...STUDY_GENERATION_SETTINGS,
       onError: ({ error }) => {
         streamError = error;
@@ -69,6 +65,6 @@ async function testModel(slug) {
   }
 }
 
-for (const model of MODELS) {
+for (const model of MODEL_CATALOG) {
   console.log(JSON.stringify(await testModel(model.slug), null, 2));
 }

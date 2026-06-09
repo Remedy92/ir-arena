@@ -1,6 +1,4 @@
-import type { BlindLabel, ModelConfig } from './models';
-
-const BLIND_LABELS: BlindLabel[] = ['A', 'B', 'C', 'D'];
+import { labelFromIndex, type BlindLabel, type ModelConfig } from './models';
 
 export interface ShuffledModel {
   model: ModelConfig;
@@ -22,6 +20,6 @@ export function shuffleModels(models: ModelConfig[]): ShuffledModel[] {
 
   return shuffled.map((model, index) => ({
     model,
-    blindLabel: BLIND_LABELS[index] as BlindLabel,
+    blindLabel: labelFromIndex(index),
   }));
 }

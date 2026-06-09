@@ -1,16 +1,13 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { CaseInput } from '@/components/case-input';
-import { ConsensusStrip } from '@/components/consensus-strip';
 import { DisclaimerStrip } from '@/components/disclaimer-strip';
-import { Hero } from '@/components/hero';
-import {
-  ModelCard,
-  type ModelCardSlotState,
-} from '@/components/model-card';
+import { ModelPicker } from '@/components/model-picker';
 import { TopBar } from '@/components/top-bar';
+import { Button } from '@/components/ui/button';
 import {
   assembleCaseText,
   PRESET_CASES,
@@ -18,43 +15,35 @@ import {
   type CaseField,
   type CaseFields,
 } from '@/lib/cases';
-import type { BlindLabel, ModelConfig } from '@/lib/models';
-import { hasSubstitutionFootnote, MODELS } from '@/lib/models';
-import { shuffleModels } from '@/lib/shuffle';
+import { hasSubstitutionFootnote } from '@/lib/models';
+import { getPendingRun, setPendingRun } from '@/lib/run-store';
+import { useSelectedModels } from '@/lib/use-selected-models';
 
 const DEFAULT_PRESET = PRESET_CASES[1];
 
-function getModelStartDelayMs(model: ModelConfig, index: number): number {
-  const baseDelay = index * 500;
-  if (model.id === 'gemini') {
-    return baseDelay + 1000;
-  }
-  return baseDelay;
-}
+export default function SetupPage() {
+  const router = useRouter();
 
-type ShuffledSlot = {
-  model: ModelConfig;
-  blindLabel: BlindLabel;
-};
-
-const EMPTY_SLOT_STATES: ModelCardSlotState[] = [];
-
-export default function Home() {
   const [caseFields, setCaseFields] = useState<CaseFields>(() =>
     presetToCaseFields(DEFAULT_PRESET),
   );
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET.id);
-  const [revealModels, setRevealModels] = useState(false);
-  const [runId, setRunId] = useState(0);
-  const [shuffledSlots, setShuffledSlots] = useState<ShuffledSlot[]>([]);
-  const [slotStates, setSlotStates] = useState<
-    Record<BlindLabel, ModelCardSlotState>
-  >({} as Record<BlindLabel, ModelCardSlotState>);
+  const [selectedModels, setSelectedModels] = useSelectedModels();
 
-  // The triage API takes a single case string, so the structured fields are
-  // folded into one labeled prompt (empties omitted) before sending.
+  // Restore the last configured case when returning from the run page via
+  // "Edit comparison" (models are restored separately from localStorage).
+  useEffect(() => {
+    const pending = getPendingRun();
+    if (pending) {
+      setCaseFields(pending.caseFields);
+      if (pending.presetId) {
+        setSelectedPresetId(pending.presetId);
+      }
+    }
+  }, []);
+
   const caseText = useMemo(() => assembleCaseText(caseFields), [caseFields]);
-  const canRun = caseText.trim().length >= 10;
+  const canRun = caseText.trim().length >= 10 && selectedModels.length >= 2;
 
   const handleFieldChange = useCallback((field: CaseField, value: string) => {
     setCaseFields((previous) => ({ ...previous, [field]: value }));
@@ -69,104 +58,96 @@ export default function Home() {
   }, []);
 
   const handleRun = useCallback(() => {
-    setRevealModels(false);
-    setShuffledSlots(shuffleModels(MODELS));
-    setSlotStates({} as Record<BlindLabel, ModelCardSlotState>);
-    setRunId((current) => current + 1);
-  }, []);
-
-  // Stable per-label handlers. Creating a fresh closure per render (the prior
-  // `makeSlotStateHandler(label)` call site) gave each ModelCard a new
-  // onStateChange ref every render; the card's state-reporting effect lists it
-  // as a dependency, so it refired → setSlotStates → re-render → new ref → …,
-  // an infinite update loop the moment a run started. Keying stable handlers by
-  // the fixed A–D labels breaks that cycle.
-  const slotStateHandlers = useMemo(() => {
-    const labels: BlindLabel[] = ['A', 'B', 'C', 'D'];
-    return labels.reduce(
-      (handlers, blindLabel) => {
-        handlers[blindLabel] = (state: ModelCardSlotState) => {
-          setSlotStates((previous) => ({
-            ...previous,
-            [blindLabel]: state,
-          }));
-        };
-        return handlers;
-      },
-      {} as Record<BlindLabel, (state: ModelCardSlotState) => void>,
-    );
-  }, []);
-
-  const slotStateList = useMemo(() => {
-    if (shuffledSlots.length === 0) {
-      return EMPTY_SLOT_STATES;
+    if (!canRun) {
+      return;
     }
+    setPendingRun({
+      caseFields,
+      presetId: selectedPresetId,
+      modelIds: selectedModels.map((model) => model.id),
+    });
+    router.push('/run');
+  }, [canRun, caseFields, selectedPresetId, selectedModels, router]);
 
-    return shuffledSlots.map(
-      (slot) =>
-        slotStates[slot.blindLabel] ?? {
-          blindLabel: slot.blindLabel,
-          model: slot.model,
-          object: undefined,
-          isLoading: runId > 0,
-          error: undefined,
-          latencyMs: undefined,
-          finished: false,
-        },
-    );
-  }, [shuffledSlots, slotStates, runId]);
-
-  const isRunning = slotStateList.some((slot) => slot.isLoading);
-
-  const substitutionFootnote = MODELS.find(hasSubstitutionFootnote)?.footnote;
+  const substitutionFootnote =
+    selectedModels.find(hasSubstitutionFootnote)?.footnote;
 
   return (
-    <div className="flex min-h-full flex-col">
-      <TopBar
-        revealModels={revealModels}
-        onRevealChange={setRevealModels}
-        isRunning={isRunning}
-      />
+    <div className="flex min-h-full flex-col md:h-dvh md:min-h-0 md:overflow-hidden">
+      <TopBar />
       <DisclaimerStrip />
 
-      <main className="flex-1">
-        <Hero />
-        <CaseInput
-          fields={caseFields}
-          onFieldChange={handleFieldChange}
-          canRun={canRun}
-          selectedPresetId={selectedPresetId}
-          onPresetChange={handlePresetChange}
-          onRun={handleRun}
-          isRunning={isRunning}
-        />
-
-        {runId > 0 && shuffledSlots.length > 0 ? (
-          <section className="mx-auto w-full max-w-7xl px-4 pb-6">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {shuffledSlots.map((slot, index) => (
-                <ModelCard
-                  key={`${slot.blindLabel}-${runId}`}
-                  blindLabel={slot.blindLabel}
-                  model={slot.model}
-                  revealModels={revealModels}
-                  caseText={caseText}
-                  runId={runId}
-                  startDelayMs={getModelStartDelayMs(slot.model, index)}
-                  onStateChange={slotStateHandlers[slot.blindLabel]}
+      <main className="flex flex-1 flex-col md:min-h-0 md:overflow-hidden">
+        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5 px-4 pt-6 pb-4 md:min-h-0 md:overflow-hidden">
+          {/* Compact editorial header */}
+          <header className="flex flex-col gap-1">
+            <h1 className="font-['Newsreader',Georgia,serif] text-2xl font-light tracking-tight text-[#2E2B29] sm:text-3xl">
+              Which model calls the{' '}
+              <em className="relative inline-block not-italic">
+                <span className="relative z-10 italic">bleed</span>
+                <span
+                  aria-hidden
+                  className="absolute inset-x-[-0.1em] bottom-[0.08em] z-0 h-[0.5em] rounded-sm bg-[#F4C406]"
                 />
-              ))}
+              </em>
+              ?
+            </h1>
+            <p className="max-w-2xl text-sm leading-relaxed text-[#67625B]">
+              Pick the models and prepare a synthetic case, then run a blinded
+              side-by-side triage.
+            </p>
+          </header>
+
+          {/* Two-column config — model picker + case prep */}
+          <div className="grid flex-1 gap-5 md:min-h-0 md:grid-cols-[19rem_1fr] md:overflow-hidden lg:grid-cols-[21rem_1fr]">
+            <aside className="flex flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:min-h-0 md:overflow-y-auto">
+              <ModelPicker
+                selectedModels={selectedModels}
+                onSelectionChange={setSelectedModels}
+              />
+            </aside>
+
+            <section className="flex flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:min-h-0 md:overflow-y-auto">
+              <CaseInput
+                fields={caseFields}
+                onFieldChange={handleFieldChange}
+                selectedPresetId={selectedPresetId}
+                onPresetChange={handlePresetChange}
+              />
+            </section>
+          </div>
+        </div>
+
+        {/* Run bar — pinned beneath the config, mirrors the comparison input */}
+        <div className="shrink-0 border-t border-[#EEEDEC] bg-[#FCFAF8]">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-0.5">
+              <span className="font-mono text-[11px] tabular-nums text-[#67625B]">
+                {selectedModels.length}{' '}
+                {selectedModels.length === 1 ? 'model' : 'models'} selected
+              </span>
+              {!canRun ? (
+                <span className="text-[11px] text-[#67625B]">
+                  Select at least 2 models and enter a case to run.
+                </span>
+              ) : null}
+              {substitutionFootnote ? (
+                <span className="text-[11px] text-[#67625B]">
+                  {substitutionFootnote}
+                </span>
+              ) : null}
             </div>
 
-            {substitutionFootnote ? (
-              <p className="mt-4 text-center text-[11px] text-[#67625B]">
-                {substitutionFootnote}
-              </p>
-            ) : null}
-          </section>
-        ) : null}
-
-        <ConsensusStrip slots={slotStateList} />
+            <Button
+              type="button"
+              onClick={handleRun}
+              disabled={!canRun}
+              className="h-10 rounded-[12px] bg-[#2E2B29] px-6 text-sm font-medium text-white hover:bg-[#2E2B29]/90"
+            >
+              Run comparison
+            </Button>
+          </div>
+        </div>
       </main>
     </div>
   );

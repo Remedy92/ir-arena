@@ -1,7 +1,7 @@
 'use client';
 
 import { DecisionBadge } from '@/components/decision-badge';
-import type { ModelCardSlotState } from '@/components/model-card';
+import type { ModelCardSlotState } from '@/lib/use-triage-stream';
 import {
   Table,
   TableBody,
@@ -37,8 +37,6 @@ const URGENCY_LABELS: Record<TriageResult['urgency'], string> = {
   SEMI_ELECTIVE: 'Semi-elective',
 };
 
-const BLIND_LABELS: BlindLabel[] = ['A', 'B', 'C', 'D'];
-
 function formatCellValue(field: ConsensusField, value: string | undefined) {
   if (!value) {
     return '—';
@@ -72,6 +70,7 @@ function isAgreedCell(row: ConsensusRow, label: BlindLabel): boolean {
 
 export function ConsensusStrip({ slots }: ConsensusStripProps) {
   const finishedCount = slots.filter((slot) => slot.finished).length;
+  const labels: BlindLabel[] = slots.map((slot) => slot.blindLabel);
 
   if (!shouldShowConsensus(finishedCount)) {
     return null;
@@ -86,12 +85,13 @@ export function ConsensusStrip({ slots }: ConsensusStripProps) {
   );
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 pb-10">
+    <section className="w-full">
       <div className="overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white">
         <div className="border-b border-[#EEEDEC] px-4 py-3">
           <h2 className="text-sm font-medium text-[#2E2B29]">Agreement</h2>
           <p className="mt-0.5 text-xs text-[#67625B]">
-            {finishedCount} of 4 schema-valid responses finished — exact matches highlighted
+            {finishedCount} of {slots.length} schema-valid responses finished —
+            exact matches highlighted
           </p>
         </div>
 
@@ -99,7 +99,7 @@ export function ConsensusStrip({ slots }: ConsensusStripProps) {
           <TableHeader>
             <TableRow className="border-[#EEEDEC] hover:bg-transparent">
               <TableHead className="h-9 text-xs text-[#67625B]">Field</TableHead>
-              {BLIND_LABELS.map((label) => (
+              {labels.map((label) => (
                 <TableHead
                   key={label}
                   className="h-9 text-center text-xs text-[#67625B]"
@@ -115,7 +115,7 @@ export function ConsensusStrip({ slots }: ConsensusStripProps) {
                 <TableCell className="text-xs font-medium text-[#67625B]">
                   {FIELD_LABELS[row.field]}
                 </TableCell>
-                {BLIND_LABELS.map((label) => (
+                {labels.map((label) => (
                   <TableCell
                     key={`${row.field}-${label}`}
                     className={cn(

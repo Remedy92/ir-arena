@@ -1,25 +1,58 @@
 'use client';
 
+import Link from 'next/link';
+
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { cn } from '@/lib/utils';
 
 interface TopBarProps {
-  revealModels: boolean;
-  onRevealChange: (reveal: boolean) => void;
+  /** Optional mode breadcrumb shown beside the wordmark (e.g. "Side by side"). */
+  mode?: string;
+  /** Show the pulsing indicator while a run is streaming. */
   isRunning?: boolean;
 }
 
-export function TopBar({
-  revealModels,
-  onRevealChange,
-  isRunning = false,
-}: TopBarProps) {
+export function TopBar({ mode, isRunning = false }: TopBarProps) {
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-[#EEEDEC] bg-[#FCFAF8] px-4 sm:px-6">
-      <h1 className="font-['Newsreader',Georgia,serif] text-lg font-light tracking-tight text-[#67625B]">
-        IR Arena
-      </h1>
+    <header className="sticky top-0 z-50 flex h-14 shrink-0 items-center justify-between gap-4 border-b border-[#EEEDEC] bg-[#FCFAF8] px-4 sm:px-6">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <Link href="/" className="flex items-center gap-2.5">
+          <svg
+            viewBox="0 0 24 24"
+            className="size-[22px] shrink-0 text-[#2E2B29]"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            {/* incident-response shield */}
+            <path
+              d="M12 2.6 19 5.4v6.2c0 4.3-3 7.3-7 8.8-4-1.5-7-4.5-7-8.8V5.4z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+            {/* triage pulse — the signal under review */}
+            <path
+              d="M7.5 12h2.2l1.4-3 1.6 6 1.3-3h2"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="font-['Newsreader',Georgia,serif] text-xl font-medium tracking-[-0.01em] text-[#2E2B29]">
+            IR Arena
+          </span>
+        </Link>
+
+        {mode ? (
+          <>
+            <span aria-hidden className="text-[#D8D5D0]">
+              /
+            </span>
+            <span className="truncate text-sm text-[#67625B]">{mode}</span>
+          </>
+        ) : null}
+      </div>
 
       <div className="flex items-center gap-3 sm:gap-4">
         <Badge
@@ -28,31 +61,6 @@ export function TopBar({
         >
           Synthetic data
         </Badge>
-
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              'text-xs text-[#67625B] transition-colors',
-              !revealModels && 'font-medium text-[#2E2B29]',
-            )}
-          >
-            Blinded
-          </span>
-          <Switch
-            checked={revealModels}
-            onCheckedChange={onRevealChange}
-            disabled={isRunning}
-            aria-label="Toggle model reveal"
-          />
-          <span
-            className={cn(
-              'text-xs text-[#67625B] transition-colors',
-              revealModels && 'font-medium text-[#2E2B29]',
-            )}
-          >
-            Reveal
-          </span>
-        </div>
 
         {isRunning ? (
           <span
