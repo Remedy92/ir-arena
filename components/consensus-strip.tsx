@@ -89,9 +89,9 @@ export function ConsensusStrip({ slots }: ConsensusStripProps) {
     <section className="mx-auto w-full max-w-6xl px-4 pb-10">
       <div className="overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white">
         <div className="border-b border-[#EEEDEC] px-4 py-3">
-          <h2 className="text-sm font-medium text-[#2E2B29]">Consensus</h2>
+          <h2 className="text-sm font-medium text-[#2E2B29]">Agreement</h2>
           <p className="mt-0.5 text-xs text-[#67625B]">
-            {finishedCount} of 4 models finished — agreed cells highlighted
+            {finishedCount} of 4 schema-valid responses finished — exact matches highlighted
           </p>
         </div>
 

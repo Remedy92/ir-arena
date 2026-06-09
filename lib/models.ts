@@ -33,19 +33,25 @@ export const MODELS: ModelConfig[] = [
     dotColor: '#4285F4',
   },
   {
-    id: 'medgemma',
-    label: 'MedGemma 1.5',
+    id: 'gemma',
+    label: 'Gemma 4 31B',
     slug: 'google/gemma-4-31b-it',
     provider: 'Google',
     dotColor: '#34A853',
     substituted: true,
     footnote:
-      'MedGemma unavailable via gateway — substituted with Gemma 4 31B',
+      'MedGemma unavailable via gateway — this arm uses Gemma 4 31B and should not be analyzed as MedGemma',
   },
 ];
 
+export const MODEL_SLUGS = MODELS.map((model) => model.slug);
+
 export function getModelBySlug(slug: string): ModelConfig | undefined {
   return MODELS.find((model) => model.slug === slug);
+}
+
+export function isKnownModelSlug(slug: string): boolean {
+  return MODEL_SLUGS.includes(slug);
 }
 
 export function hasSubstitutionFootnote(model: ModelConfig): boolean {

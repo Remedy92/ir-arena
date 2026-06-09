@@ -2,20 +2,16 @@ import { Output, streamText } from 'ai';
 import { ZodError } from 'zod';
 
 import { createTriageModel } from '@/lib/ai-model';
-import { GEMMA_EXTRA_PROMPT, SYSTEM_PROMPT } from '@/lib/prompts';
+import { SYSTEM_PROMPT } from '@/lib/prompts';
 import { triageRequestSchema, triageSchema } from '@/lib/schema';
+import {
+  buildGatewayProviderOptions,
+  STUDY_GENERATION_SETTINGS,
+} from '@/lib/study-settings';
 
 // Node.js runtime required for @ai-sdk/devtools local capture (fs + .devtools/)
 export const runtime = 'nodejs';
 export const maxDuration = 60;
-
-function buildUserPrompt(caseText: string, model: string): string {
-  if (model.includes('gemma')) {
-    return `${caseText}\n\n${GEMMA_EXTRA_PROMPT}`;
-  }
-
-  return caseText;
-}
 
 export async function POST(req: Request) {
   try {
@@ -25,9 +21,10 @@ export async function POST(req: Request) {
     const result = streamText({
       model: createTriageModel(model),
       system: SYSTEM_PROMPT,
-      prompt: buildUserPrompt(caseText, model),
+      prompt: caseText,
       output: Output.object({ schema: triageSchema }),
-      maxRetries: 0,
+      providerOptions: buildGatewayProviderOptions(model),
+      ...STUDY_GENERATION_SETTINGS,
       onError: ({ error }) => {
         console.error(`[triage] stream error for ${model}:`, error);
       },
@@ -36,11 +33,10 @@ export async function POST(req: Request) {
     return result.toTextStreamResponse();
   } catch (error) {
     if (error instanceof ZodError) {
-      return Response.json({ error: error.message }, { status: 400 });
+      return Response.json({ error: 'Invalid triage request' }, { status: 400 });
     }
 
-    const message =
-      error instanceof Error ? error.message : 'Internal server error';
-    return Response.json({ error: message }, { status: 500 });
+    console.error('[triage] request failed:', error);
+    return Response.json({ error: 'Triage request failed' }, { status: 500 });
   }
 }

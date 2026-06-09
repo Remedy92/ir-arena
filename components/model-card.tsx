@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import type { DeepPartial } from 'ai';
 
@@ -17,6 +17,7 @@ import {
 import type { BlindLabel, ModelConfig } from '@/lib/models';
 import {
   formatConfidencePercent,
+  normalizeTriagePartial,
   triageClientSchema,
   triageRequestSchema,
   type TriageResult,
@@ -52,11 +53,19 @@ function formatDisplayError(error: Error | undefined): string | undefined {
   }
 
   const message = error.message || 'Triage request failed.';
+  if (
+    error.name.includes('TypeValidation') ||
+    message.toLowerCase().includes('schema') ||
+    message.toLowerCase().includes('validation')
+  ) {
+    return 'Model response did not match the study JSON schema; excluded from agreement.';
+  }
+
   if (message.includes('undefined') || message.includes('empty')) {
     return 'Gateway returned an empty response (often a temporary 503). Use Retry when ready.';
   }
 
-  return message;
+  return 'Triage request failed. Use Retry when ready.';
 }
 
 const URGENCY_LABELS: Record<NonNullable<TriageResult['urgency']>, string> = {
@@ -92,8 +101,16 @@ export function ModelCard({
   const [latencyMs, setLatencyMs] = useState<number | undefined>();
   const [finished, setFinished] = useState(false);
   const [finishError, setFinishError] = useState<Error | undefined>();
+  // The fully validated study result. Streamed partials are shown while the
+  // request is active, but final scoring only uses this schema-valid object.
+  const [finalObject, setFinalObject] = useState<TriageResult | undefined>();
 
-  const submitRef = useRef<(input: TriageRequest) => void>(() => {});
+  const recordLatency = useCallback(() => {
+    if (startTimeRef.current !== null) {
+      setLatencyMs(Math.round(performance.now() - startTimeRef.current));
+      startTimeRef.current = null;
+    }
+  }, []);
 
   const handleFinish = useCallback(
     ({
@@ -103,22 +120,29 @@ export function ModelCard({
       object: TriageResult | undefined;
       error: Error | undefined;
     }) => {
-      if (startTimeRef.current !== null) {
-        setLatencyMs(Math.round(performance.now() - startTimeRef.current));
-        startTimeRef.current = null;
-      }
+      recordLatency();
 
       if (schemaError && process.env.NODE_ENV === 'development') {
         console.error(`[${model.slug}] schema validation:`, schemaError.message);
       }
 
+      setFinalObject(result);
       setFinishError(schemaError);
       setFinished(schemaError === undefined && result !== undefined);
     },
-    [model.slug],
+    [model.slug, recordLatency],
   );
 
-  const { object, error, isLoading, submit } = useObject<
+  const handleRequestError = useCallback(
+    (requestError: Error) => {
+      recordLatency();
+      setFinished(false);
+      setFinishError(requestError);
+    },
+    [recordLatency],
+  );
+
+  const { object, error, isLoading, submit, stop } = useObject<
     typeof triageClientSchema,
     TriageResult,
     TriageRequest
@@ -126,24 +150,26 @@ export function ModelCard({
     api: '/api/triage',
     schema: triageClientSchema,
     onFinish: handleFinish,
+    onError: handleRequestError,
   });
-
-  submitRef.current = (input) => {
-    void submit(input);
-  };
 
   const runSubmit = useCallback(() => {
     setFinished(false);
     setFinishError(undefined);
+    setFinalObject(undefined);
     setLatencyMs(undefined);
     startTimeRef.current = performance.now();
     void submit({ case: caseText, model: model.slug });
   }, [caseText, model.slug, submit]);
 
   useEffect(() => {
+    // Each run bumps the parent `key` (…-${runId}), remounting this card with
+    // fresh state, so no manual reset is needed here.
     if (runId > 0 && caseText.trim().length >= 10) {
-      startTimeRef.current = performance.now();
       const timer = window.setTimeout(() => {
+        // Start the clock at the actual request, not before the stagger delay,
+        // so staggered cards (e.g. Gemini's +1s offset) report true latency.
+        startTimeRef.current = performance.now();
         void submit({ case: caseText, model: model.slug });
       }, startDelayMs);
 
@@ -153,14 +179,26 @@ export function ModelCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId]);
 
+  useEffect(() => () => stop(), [stop]);
+
   const rawError = error ?? finishError;
   const displayError = formatDisplayError(rawError);
+
+  // Once finished, show the fully validated result; while streaming, show the
+  // live partial without repairing schema drift.
+  const displayObject = useMemo<DeepPartial<TriageResult> | undefined>(
+    () =>
+      finished && finalObject
+        ? finalObject
+        : (normalizeTriagePartial(object) as DeepPartial<TriageResult> | undefined),
+    [finished, finalObject, object],
+  );
 
   useEffect(() => {
     onStateChange({
       blindLabel,
       model,
-      object,
+      object: displayObject,
       isLoading,
       error: rawError,
       latencyMs,
@@ -169,7 +207,7 @@ export function ModelCard({
   }, [
     blindLabel,
     model,
-    object,
+    displayObject,
     isLoading,
     rawError,
     latencyMs,
@@ -178,7 +216,7 @@ export function ModelCard({
   ]);
 
   const headerLabel = revealModels ? model.label : `Model ${blindLabel}`;
-  const confidence = formatConfidencePercent(object?.confidence);
+  const confidence = formatConfidencePercent(displayObject?.confidence);
 
   return (
     <Card
@@ -231,26 +269,26 @@ export function ModelCard({
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <DecisionBadge decision={object?.decision} />
-              {formatUrgency(object?.urgency) ? (
+              <DecisionBadge decision={displayObject?.decision} />
+              {formatUrgency(displayObject?.urgency) ? (
                 <span className="text-xs text-[#67625B]">
-                  {formatUrgency(object?.urgency)}
+                  {formatUrgency(displayObject?.urgency)}
                 </span>
               ) : null}
             </div>
 
-            <Field label="Target vessel" value={object?.targetVessel} />
-            <Field label="Embolic agent" value={object?.embolicAgent} />
-            <Field label="Alternative plan" value={object?.alternativePlan} />
-            <Field label="Rationale" value={object?.rationale} multiline />
+            <Field label="Target vessel" value={displayObject?.targetVessel} />
+            <Field label="Embolic agent" value={displayObject?.embolicAgent} />
+            <Field label="Alternative plan" value={displayObject?.alternativePlan} />
+            <Field label="Rationale" value={displayObject?.rationale} multiline />
 
-            {object?.redFlags && object.redFlags.length > 0 ? (
+            {displayObject?.redFlags && displayObject.redFlags.length > 0 ? (
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-medium tracking-wide text-[#67625B] uppercase">
                   Red flags
                 </span>
                 <ul className="list-inside list-disc space-y-1 text-sm text-[#2E2B29]">
-                  {object.redFlags.map((flag, index) =>
+                  {displayObject.redFlags.map((flag, index) =>
                     flag ? (
                       <li key={`${flag}-${index}`} className="leading-snug">
                         {flag}

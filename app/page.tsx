@@ -11,7 +11,13 @@ import {
   type ModelCardSlotState,
 } from '@/components/model-card';
 import { TopBar } from '@/components/top-bar';
-import { PRESET_CASES } from '@/lib/cases';
+import {
+  assembleCaseText,
+  PRESET_CASES,
+  presetToCaseFields,
+  type CaseField,
+  type CaseFields,
+} from '@/lib/cases';
 import type { BlindLabel, ModelConfig } from '@/lib/models';
 import { hasSubstitutionFootnote, MODELS } from '@/lib/models';
 import { shuffleModels } from '@/lib/shuffle';
@@ -34,7 +40,9 @@ type ShuffledSlot = {
 const EMPTY_SLOT_STATES: ModelCardSlotState[] = [];
 
 export default function Home() {
-  const [caseText, setCaseText] = useState(DEFAULT_PRESET.vignette);
+  const [caseFields, setCaseFields] = useState<CaseFields>(() =>
+    presetToCaseFields(DEFAULT_PRESET),
+  );
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET.id);
   const [revealModels, setRevealModels] = useState(false);
   const [runId, setRunId] = useState(0);
@@ -43,11 +51,20 @@ export default function Home() {
     Record<BlindLabel, ModelCardSlotState>
   >({} as Record<BlindLabel, ModelCardSlotState>);
 
+  // The triage API takes a single case string, so the structured fields are
+  // folded into one labeled prompt (empties omitted) before sending.
+  const caseText = useMemo(() => assembleCaseText(caseFields), [caseFields]);
+  const canRun = caseText.trim().length >= 10;
+
+  const handleFieldChange = useCallback((field: CaseField, value: string) => {
+    setCaseFields((previous) => ({ ...previous, [field]: value }));
+  }, []);
+
   const handlePresetChange = useCallback((presetId: string) => {
     const preset = PRESET_CASES.find((item) => item.id === presetId);
     if (preset) {
       setSelectedPresetId(presetId);
-      setCaseText(preset.vignette);
+      setCaseFields(presetToCaseFields(preset));
     }
   }, []);
 
@@ -58,15 +75,27 @@ export default function Home() {
     setRunId((current) => current + 1);
   }, []);
 
-  const makeSlotStateHandler = useCallback(
-    (blindLabel: BlindLabel) => (state: ModelCardSlotState) => {
-      setSlotStates((previous) => ({
-        ...previous,
-        [blindLabel]: state,
-      }));
-    },
-    [],
-  );
+  // Stable per-label handlers. Creating a fresh closure per render (the prior
+  // `makeSlotStateHandler(label)` call site) gave each ModelCard a new
+  // onStateChange ref every render; the card's state-reporting effect lists it
+  // as a dependency, so it refired → setSlotStates → re-render → new ref → …,
+  // an infinite update loop the moment a run started. Keying stable handlers by
+  // the fixed A–D labels breaks that cycle.
+  const slotStateHandlers = useMemo(() => {
+    const labels: BlindLabel[] = ['A', 'B', 'C', 'D'];
+    return labels.reduce(
+      (handlers, blindLabel) => {
+        handlers[blindLabel] = (state: ModelCardSlotState) => {
+          setSlotStates((previous) => ({
+            ...previous,
+            [blindLabel]: state,
+          }));
+        };
+        return handlers;
+      },
+      {} as Record<BlindLabel, (state: ModelCardSlotState) => void>,
+    );
+  }, []);
 
   const slotStateList = useMemo(() => {
     if (shuffledSlots.length === 0) {
@@ -103,8 +132,9 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <CaseInput
-          caseText={caseText}
-          onCaseTextChange={setCaseText}
+          fields={caseFields}
+          onFieldChange={handleFieldChange}
+          canRun={canRun}
           selectedPresetId={selectedPresetId}
           onPresetChange={handlePresetChange}
           onRun={handleRun}
@@ -123,7 +153,7 @@ export default function Home() {
                   caseText={caseText}
                   runId={runId}
                   startDelayMs={getModelStartDelayMs(slot.model, index)}
-                  onStateChange={makeSlotStateHandler(slot.blindLabel)}
+                  onStateChange={slotStateHandlers[slot.blindLabel]}
                 />
               ))}
             </div>

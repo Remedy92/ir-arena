@@ -1,8 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { streamText, Output, gateway } from 'ai';
+import { streamText, Output } from 'ai';
+import { createTriageModel } from '../lib/ai-model.ts';
+import { MODELS } from '../lib/models.ts';
 import { triageSchema } from '../lib/schema.ts';
 import { SYSTEM_PROMPT } from '../lib/prompts.ts';
+import {
+  buildGatewayProviderOptions,
+  STUDY_GENERATION_SETTINGS,
+} from '../lib/study-settings.ts';
 
 // Load .env.local
 const envPath = resolve(process.cwd(), '.env.local');
@@ -14,13 +20,6 @@ for (const line of readFileSync(envPath, 'utf8').split('\n')) {
 const CASE_TEXT =
   'A 72-year-old man presents with brisk hematochezia six hours after uncomplicated cecal polypectomy during screening colonoscopy. He is pale and diaphoretic with blood pressure 95/60 mmHg and heart rate 112. Hemoglobin fell from 9.1 to 7.4 g/dL despite crystalloid resuscitation. CTA demonstrates active arterial extravasation from a branch of the ileocolic artery at the prior polypectomy site. He takes aspirin for coronary disease. IR and surgery are available.';
 
-const MODELS = [
-  'anthropic/claude-opus-4.8',
-  'openai/gpt-5.5',
-  'google/gemini-3.5-flash',
-  'google/gemma-4-31b-it',
-];
-
 async function testModel(slug) {
   const start = Date.now();
   let text = '';
@@ -28,10 +27,12 @@ async function testModel(slug) {
 
   try {
     const result = streamText({
-      model: gateway(slug),
+      model: createTriageModel(slug),
       system: SYSTEM_PROMPT,
       prompt: CASE_TEXT,
       output: Output.object({ schema: triageSchema }),
+      providerOptions: buildGatewayProviderOptions(slug),
+      ...STUDY_GENERATION_SETTINGS,
       onError: ({ error }) => {
         streamError = error;
       },
@@ -68,6 +69,6 @@ async function testModel(slug) {
   }
 }
 
-for (const slug of MODELS) {
-  console.log(JSON.stringify(await testModel(slug), null, 2));
+for (const model of MODELS) {
+  console.log(JSON.stringify(await testModel(model.slug), null, 2));
 }

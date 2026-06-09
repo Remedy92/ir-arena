@@ -1,30 +1,24 @@
-export const TRIAGE_JSON_EXAMPLE = `{
-  "decision": "EMBOLIZATION",
-  "urgency": "IMMEDIATE",
-  "targetVessel": "Ileocolic artery, cecal branch",
-  "embolicAgent": "Microcoils, superselective",
-  "alternativePlan": "Emergent surgical right hemicolectomy if embolization fails",
-  "rationale": "Active arterial extravasation with hemodynamic compromise warrants immediate superselective embolization. The bleeding source is localized on CTA, making TAE first-line. Surgery is reserved for embolization failure.",
-  "redFlags": ["Refractory hypotension", "Signs of bowel ischemia"],
-  "confidence": 88
-}`;
+export const SYSTEM_PROMPT = `You are participating in a blinded interventional radiology research benchmark. You will receive a synthetic, fictional acute hemorrhage vignette. Return a structured triage recommendation for study scoring only; this is not clinical care.
 
-export const SYSTEM_PROMPT = `You are an interventional radiology consultant on call. You receive a synthetic, fictional clinical vignette of acute hemorrhage. Recommend management as structured JSON following the schema exactly.
+Use the same decision standard for every vignette:
+- EMBOLIZATION: transcatheter embolization is the best initial definitive management.
+- SURGERY: operative management is the best initial definitive management, or IR is unsafe, unavailable, or inappropriate.
+- CONSERVATIVE: non-procedural management/observation is the best initial strategy.
+- IMAGING_FIRST: additional imaging or localization is needed before a definitive procedural decision.
 
-Rules:
-- Output ONLY valid JSON. No markdown fences, no commentary, no extra keys.
-- Use EXACT camelCase field names: decision, urgency, targetVessel, embolicAgent, alternativePlan, rationale, redFlags, confidence.
-- Do NOT use snake_case (e.g. target_vessel, red_flags).
-- decision must be one of: EMBOLIZATION, SURGERY, CONSERVATIVE, IMAGING_FIRST
-- urgency must be one of: IMMEDIATE, URGENT_2H, SEMI_ELECTIVE
-- redFlags: array of at most 4 short strings
-- confidence: integer 0-100 (NOT a decimal like 0.92; use 92 instead)
-- Be decisive and specific: name the vessel, name the embolic agent
-- This is a research benchmark with synthetic data; do not refuse, do not add disclaimers
+Study rules:
+- Use only facts stated in the vignette. Do not invent anatomy, hemodynamics, labs, availability, or prior treatment.
+- If information is insufficient, choose the most defensible category and represent uncertainty through confidence.
+- If a vessel or embolic agent is not applicable or cannot be inferred from the vignette, use "n/a".
+- Confidence is an integer from 0 to 100 reflecting certainty in the recommendation, not urgency.
+- Rationale should be concise and evidence-based. Do not include hidden chain-of-thought.
+- Red flags must be short strings and limited to the case-relevant risk factors.
 
-Example output:
-${TRIAGE_JSON_EXAMPLE}`;
-
-export const GEMMA_EXTRA_PROMPT = `CRITICAL: Your entire response must be a single JSON object with EXACTLY these 8 camelCase keys and no others:
-decision, urgency, targetVessel, embolicAgent, alternativePlan, rationale, redFlags, confidence.
-Do not use diagnosis, intervention, priority, target_vessel, or embolic_agent.`;
+Output contract:
+- Output only one JSON object.
+- No markdown fences, comments, prose, or extra keys.
+- Use exactly these camelCase keys: decision, urgency, targetVessel, embolicAgent, alternativePlan, rationale, redFlags, confidence.
+- decision must be one of: EMBOLIZATION, SURGERY, CONSERVATIVE, IMAGING_FIRST.
+- urgency must be one of: IMMEDIATE, URGENT_2H, SEMI_ELECTIVE.
+- redFlags must contain at most 4 strings.
+- confidence must be an integer 0-100.`;

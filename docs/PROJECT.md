@@ -2,7 +2,7 @@
 
 Central doc for architecture, progress, and deployment.
 
-**Last updated:** 2026-06-06  
+**Last updated:** 2026-06-08  
 **Orchestrator:** main agent  
 **Repo:** https://github.com/Remedy92/ir-arena  
 **Production:** https://ir-arena.vercel.app
@@ -16,7 +16,7 @@ User → CaseInput → Run
          ↓
     4× ModelCard (useObject) ──parallel──► POST /api/triage
          ↓                                      ↓
-    ConsensusStrip ◄── finished results    streamText + Output.object
+    Agreement UI ◄── valid finished results streamText + Output.object
                                                ↓
                                          Vercel AI Gateway
 ```
@@ -28,7 +28,7 @@ User → CaseInput → Run
 | GPT-5.5 | `openai/gpt-5.5` | ✓ |
 | Claude Opus 4.8 | `anthropic/claude-opus-4.8` | ✓ |
 | Gemini 3.5 Flash | `google/gemini-3.5-flash` | ✓ |
-| MedGemma 1.5 | `google/medgemma-1.5-4b` | ✗ → `google/gemma-4-31b-it` |
+| Gemma 4 31B | `google/gemma-4-31b-it` | ✓ substitute arm; not analyzed as MedGemma |
 
 ## Progress
 
@@ -36,7 +36,7 @@ User → CaseInput → Run
 |-------|-------|--------|-------|
 | 0 Bootstrap | orchestrator | ✅ | Next.js 16, Tailwind v4, shadcn, AI SDK v6 |
 | 1 Data layer | subagent | ✅ | lib/schema, cases, models, shuffle, consensus |
-| 2 API | subagent | ✅ | Edge /api/triage, streamText + Output.object |
+| 2 API | subagent | ✅ | Node /api/triage, streamText + Output.object |
 | 3 UI | subagent | ✅ | All components per design.md |
 | 4 Integration | orchestrator | ✅ | page.tsx wired, pnpm build passes |
 | 5 Ship | orchestrator | ✅ | GitHub + Vercel prod deploy |
@@ -56,7 +56,7 @@ app/
   layout.tsx       Newsreader + Inter + Geist Mono, TooltipProvider
   globals.css      design tokens (#FCFAF8 canvas)
   page.tsx         orchestration shell
-  api/triage/      Edge streaming route
+  api/triage/      Node streaming route
 components/        UI (top-bar, hero, case-input, model-card, consensus)
 lib/               schema, models, cases, consensus, shuffle
 design.md          visual spec
@@ -67,7 +67,7 @@ design.md          visual spec
 1. Open https://ir-arena.vercel.app → preset **#2 Pelvic trauma** is pre-selected
 2. Click **Run Triage** (blinded A–D)
 3. Watch 4 cards stream in parallel
-4. Toggle **Reveal models** → read **Consensus** strip
+4. Toggle **Reveal models** → read **Agreement** strip
 
 ## Env
 
@@ -88,15 +88,24 @@ pnpm devtools
 # → open http://localhost:4983
 ```
 
-`/api/triage` uses `runtime = 'nodejs'` in development so DevTools middleware can write captures. `maxRetries: 0` on all routes (no silent re-billing).
+`/api/triage` uses `runtime = 'nodejs'` so DevTools middleware can write captures in development. `maxRetries: 0` on the study route (no hidden re-sampling or silent re-billing).
+
+## Study posture
+
+- Server whitelists model slugs before calling AI Gateway.
+- All arms receive the same system prompt; no model-specific schema hints.
+- Gateway providers are pinned with `providerOptions.gateway.only` based on the model slug prefix.
+- Structured output is strict: exact camelCase keys, no extra keys, required integer confidence.
+- The app no longer infers missing decisions, maps snake_case fields, or fills placeholder result fields for final validation.
+- Current demo still does not persist raw completions, normalized outputs, request metadata, or expert scores; add persistence before treating results as a real study dataset.
 
 ### Failure diagnosis (2026-06-06 research, no re-test)
 
 | Model | Root cause | Fix applied |
 |-------|------------|-------------|
-| GPT-5.5 | Client `useObject` final Zod validation (subtle type/enum drift) | `z.coerce.number`, enum normalize, dev console logging |
-| Gemini 3.5 Flash | Empty gateway stream under parallel load | Staggered start (+1s), `maxRetries: 0`, manual Retry only |
-| Gemma substitute | Wrong JSON keys (non-schema model) | Server `normalizeTriageInput` + `GEMMA_EXTRA_PROMPT` |
+| GPT-5.5 | Client `useObject` final Zod validation can reject type/key drift | strict schema failure shown as excluded |
+| Gemini 3.5 Flash | Empty gateway stream under parallel load | staggered start (+1s), `maxRetries: 0`, manual Retry only |
+| Gemma 4 31B | May emit non-schema keys | no repair; schema drift counts as failure/exclusion |
 
 ## Commands
 
