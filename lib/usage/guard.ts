@@ -1,4 +1,4 @@
-import { sql } from '@/lib/db';
+import { getSql } from '@/lib/db';
 import { getCeilingMicroUsd } from '@/lib/usage/pricing';
 
 export type ReserveResult =
@@ -26,13 +26,13 @@ export async function reserveBudget(
 ): Promise<ReserveResult> {
   const ceilingMicroUsd = await getCeilingMicroUsd(modelSlug);
 
-  await sql`
+  await getSql()`
     INSERT INTO user_budget (user_id)
     VALUES (${userId})
     ON CONFLICT (user_id) DO NOTHING
   `;
 
-  const reserved = await sql`
+  const reserved = await getSql()`
     UPDATE user_budget
     SET reserved_micro_usd = reserved_micro_usd + ${ceilingMicroUsd},
         updated_at = NOW()
@@ -45,7 +45,7 @@ export async function reserveBudget(
     return { ok: false, reason: 'budget_exceeded' };
   }
 
-  const inserted = await sql`
+  const inserted = await getSql()`
     INSERT INTO usage_events (user_id, model_slug, cost_micro_usd, status)
     VALUES (${userId}, ${modelSlug}, ${ceilingMicroUsd}, 'reserved')
     RETURNING id

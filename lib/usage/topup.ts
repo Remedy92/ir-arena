@@ -1,4 +1,4 @@
-import { sql } from '@/lib/db';
+import { getSql } from '@/lib/db';
 
 export interface CreditWalletParams {
   userId: string;
@@ -34,13 +34,13 @@ export async function creditWallet({
   currency,
   creditedMicroUsd,
 }: CreditWalletParams): Promise<boolean> {
-  await sql`
+  await getSql()`
     INSERT INTO user_budget (user_id)
     VALUES (${userId})
     ON CONFLICT (user_id) DO NOTHING
   `;
 
-  const credited = await sql`
+  const credited = await getSql()`
     WITH paid AS (
       INSERT INTO payments (
         user_id, stripe_session_id, stripe_payment_intent,

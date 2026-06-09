@@ -1,5 +1,5 @@
 import { verifySession } from '@/lib/auth/dal';
-import { sql } from '@/lib/db';
+import { getSql } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
@@ -15,7 +15,7 @@ export async function GET() {
     return Response.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  const rows = await sql`
+  const rows = await getSql()`
     SELECT spent_micro_usd, reserved_micro_usd, cap_micro_usd
     FROM user_budget
     WHERE user_id = ${session.user.id}

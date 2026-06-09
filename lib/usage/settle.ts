@@ -1,7 +1,7 @@
 import { gateway } from 'ai';
 
 import { applyMarkup } from '@/lib/billing';
-import { sql } from '@/lib/db';
+import { getSql } from '@/lib/db';
 
 const MICRO_USD_PER_USD = 1_000_000;
 
@@ -87,7 +87,7 @@ export async function settleUsage({
     const outputTokens = usage?.outputTokens ?? null;
 
     // Swap the reservation for the actual cost. GREATEST keeps reserved >= 0.
-    await sql`
+    await getSql()`
       UPDATE user_budget
       SET spent_micro_usd = spent_micro_usd + ${actualMicroUsd},
           reserved_micro_usd = GREATEST(0, reserved_micro_usd - ${ceilingMicroUsd}),
@@ -95,7 +95,7 @@ export async function settleUsage({
       WHERE user_id = ${userId}
     `;
 
-    await sql`
+    await getSql()`
       UPDATE usage_events
       SET generation_id = ${generationId ?? null},
           input_tokens = ${inputTokens},
