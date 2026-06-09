@@ -8,6 +8,7 @@ import { DisclaimerStrip } from '@/components/disclaimer-strip';
 import { ModelPicker } from '@/components/model-picker';
 import { TopBar } from '@/components/top-bar';
 import { Button } from '@/components/ui/button';
+import { authClient } from '@/lib/auth/client';
 import {
   assembleCaseText,
   PRESET_CASES,
@@ -29,6 +30,7 @@ export default function SetupPage() {
   );
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET.id);
   const [selectedModels, setSelectedModels] = useSelectedModels();
+  const { data: session } = authClient.useSession();
 
   // Restore the last configured case when returning from the run page via
   // "Edit comparison" (models are restored separately from localStorage).
@@ -66,8 +68,12 @@ export default function SetupPage() {
       presetId: selectedPresetId,
       modelIds: selectedModels.map((model) => model.id),
     });
-    router.push('/run');
-  }, [canRun, caseFields, selectedPresetId, selectedModels, router]);
+    // Run is gated. If signed out, go straight to sign-in (which returns to /run
+    // via callbackURL) instead of pushing /run and bouncing off the proxy — that
+    // bounce throws a client "Failed to fetch RSC payload" error. The pending run
+    // is already in sessionStorage and survives the OAuth round-trip.
+    router.push(session ? '/run' : '/sign-in');
+  }, [canRun, caseFields, selectedPresetId, selectedModels, router, session]);
 
   const substitutionFootnote =
     selectedModels.find(hasSubstitutionFootnote)?.footnote;

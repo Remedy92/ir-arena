@@ -1,5 +1,5 @@
 import { sql } from '@/lib/db';
-import { getCeiling } from '@/lib/usage/pricing';
+import { getCeilingMicroUsd } from '@/lib/usage/pricing';
 
 export type ReserveResult =
   | { ok: true; reservationId: number; ceilingMicroUsd: number }
@@ -24,7 +24,7 @@ export async function reserveBudget(
   userId: string,
   modelSlug: string,
 ): Promise<ReserveResult> {
-  const ceilingMicroUsd = getCeiling(modelSlug);
+  const ceilingMicroUsd = await getCeilingMicroUsd(modelSlug);
 
   await sql`
     INSERT INTO user_budget (user_id)

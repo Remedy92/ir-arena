@@ -18,13 +18,18 @@ export interface SettleParams {
 
 /**
  * Resolve the authoritative USD cost for a completed generation from the AI
- * Gateway. The generation record is eventually consistent, so retry briefly
- * (1s, then 2s). Returns { settled: false } when the cost can't be read.
+ * Gateway. The generation record is eventually consistent — empirically ~12s
+ * before it is queryable (a 404 until then) — so poll for up to ~30s: an initial
+ * wait, then every 3s. Returns { settled: false } if the cost never appears.
  */
 async function fetchActualMicroUsd(
   generationId: string,
 ): Promise<{ microUsd: number; settled: boolean }> {
-  for (let attempt = 0; attempt < 3; attempt++) {
+  const deadlineMs = Date.now() + 30_000;
+  let waitMs = 4_000;
+  while (Date.now() < deadlineMs) {
+    await sleep(waitMs);
+    waitMs = 3_000;
     try {
       const info = await gateway.getGenerationInfo({ id: generationId });
       const totalCost = info?.totalCost;
@@ -35,10 +40,7 @@ async function fetchActualMicroUsd(
         };
       }
     } catch {
-      // fall through and retry
-    }
-    if (attempt < 2) {
-      await sleep(1000 * (attempt + 1));
+      // 404 = record not propagated yet; keep polling until the deadline.
     }
   }
   return { microUsd: 0, settled: false };
