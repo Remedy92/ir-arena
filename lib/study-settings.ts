@@ -1,6 +1,21 @@
 export const STUDY_GENERATION_SETTINGS = {
   maxRetries: 0,
-  maxOutputTokens: 900,
+  // Reasoning tokens are billed and counted as OUTPUT tokens, so they draw down
+  // this same budget BEFORE the JSON object is emitted. At the old 900 cap,
+  // reasoning models (e.g. zai/glm-5.2, deepseek/deepseek-v4-*) routinely spent
+  // the entire budget thinking and hit `finishReason: 'length'` with zero text
+  // tokens — surfacing as a false "no response"/empty-stream outcome rather than
+  // a real measurement. Note `reasoning: 'none'` does NOT reliably suppress this
+  // via the Gateway. This value is the single source of truth for the worst-case
+  // output budget: `getCeilingMicroUsd` (lib/usage/pricing.ts) DERIVES its
+  // reservation ceiling from it, so raising the cap stays billing-consistent by
+  // construction and lets every model finish reasoning AND return the schema
+  // object. Observed worst case across GLM/DeepSeek at this setting is ~740
+  // output tokens, so 2000 is generous headroom.
+  // We intentionally do NOT force native structured outputs: the study measures
+  // each model's *natural* schema compliance, so constraining decoding to the
+  // schema would corrupt the measured outcome.
+  maxOutputTokens: 2000,
   temperature: 0,
 } as const;
 

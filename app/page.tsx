@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 
 import { CaseInput } from '@/components/case-input';
 import { DisclaimerStrip } from '@/components/disclaimer-strip';
@@ -180,47 +180,48 @@ export default function SetupPage() {
             }}
           />
 
-          {/* Active step */}
+          {/* Active step. Each step is a keyed motion.section rendered directly
+              (no AnimatePresence): the distinct keys force a remount on step
+              change so the entry slide replays, while nothing waits on an exit
+              animation to complete. An earlier AnimatePresence mode="wait" here
+              deadlocked under the React Compiler — the exiting section froze
+              mid-transition and the next step never mounted. */}
           <div className="flex flex-1 flex-col md:min-h-0 md:overflow-hidden">
-            <AnimatePresence mode="wait" initial={false}>
-              {step === 'case' ? (
-                <motion.section
-                  key="case"
-                  initial={{ opacity: 0, x: 12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -12 }}
-                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                  className="flex flex-1 flex-col md:min-h-0"
-                >
-                  <CaseInput
-                    fields={caseFields}
-                    onFieldChange={handleFieldChange}
-                    selectedPresetId={selectedPresetId}
-                    onPresetChange={handlePresetChange}
+            {step === 'case' ? (
+              <motion.section
+                key="case"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="flex flex-1 flex-col md:min-h-0"
+              >
+                <CaseInput
+                  fields={caseFields}
+                  onFieldChange={handleFieldChange}
+                  selectedPresetId={selectedPresetId}
+                  onPresetChange={handlePresetChange}
+                />
+              </motion.section>
+            ) : (
+              <motion.section
+                key="models"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:min-h-0"
+              >
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <ModelPicker
+                    selectedModels={selectedModels}
+                    onSelectionChange={setSelectedModels}
                   />
-                </motion.section>
-              ) : (
-                <motion.section
-                  key="models"
-                  initial={{ opacity: 0, x: 12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -12 }}
-                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                  className="mx-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:min-h-0"
-                >
-                  <div className="min-h-0 flex-1 overflow-y-auto">
-                    <ModelPicker
-                      selectedModels={selectedModels}
-                      onSelectionChange={setSelectedModels}
-                    />
-                  </div>
-                  <ReasoningControl
-                    value={reasoning}
-                    onValueChange={setReasoning}
-                  />
-                </motion.section>
-              )}
-            </AnimatePresence>
+                </div>
+                <ReasoningControl
+                  value={reasoning}
+                  onValueChange={setReasoning}
+                />
+              </motion.section>
+            )}
           </div>
         </div>
 

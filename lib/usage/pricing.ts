@@ -1,14 +1,18 @@
 import { gateway } from 'ai';
 
 import { applyMarkup } from '@/lib/billing';
+import { STUDY_GENERATION_SETTINGS } from '@/lib/study-settings';
 
 const MICRO_USD_PER_USD = 1_000_000;
 
 // Conservative token bounds for one triage call: input covers a large structured
-// case; output covers maxOutputTokens (900) plus generous reasoning-token
-// headroom (reasoning tokens are billed and can dominate cost — see gemini).
+// case; output is the hard generation cap (covering reasoning + JSON in one
+// budget — reasoning tokens are billed as output and can dominate cost, see
+// gemini/glm/deepseek). MAX_OUTPUT_TOKENS is DERIVED from the study setting
+// rather than duplicated, so the wallet invariant "reservation >= what
+// generation can emit" holds by construction and the two can never drift.
 const MAX_INPUT_TOKENS = 4_000;
-const MAX_OUTPUT_TOKENS = 2_000;
+const MAX_OUTPUT_TOKENS = STUDY_GENERATION_SETTINGS.maxOutputTokens;
 
 // Per-slug fallback ceilings (micro-USD), used ONLY if live gateway pricing can't
 // be fetched. Derived from observed gateway pricing at the bounds above;
