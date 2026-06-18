@@ -147,7 +147,7 @@ export default function SetupPage() {
       <DisclaimerStrip />
 
       <main className="flex flex-1 flex-col md:min-h-0 md:overflow-hidden">
-        <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 pt-6 pb-4 md:min-h-0 md:overflow-hidden">
+        <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 pt-6 pb-4 md:min-h-0 md:overflow-hidden">
           {/* Compact editorial header */}
           <header className="flex flex-col gap-1">
             <h1 className="font-['Newsreader',Georgia,serif] text-2xl font-light tracking-tight text-[#2E2B29] sm:text-3xl">
@@ -190,7 +190,7 @@ export default function SetupPage() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -12 }}
                   transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                  className="flex flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:min-h-0 md:overflow-y-auto"
+                  className="flex flex-1 flex-col md:min-h-0"
                 >
                   <CaseInput
                     fields={caseFields}
@@ -206,7 +206,7 @@ export default function SetupPage() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -12 }}
                   transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                  className="flex flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:min-h-0"
+                  className="mx-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:min-h-0"
                 >
                   <div className="min-h-0 flex-1 overflow-y-auto">
                     <ModelPicker
@@ -226,7 +226,7 @@ export default function SetupPage() {
 
         {/* Step action bar — pinned beneath the config */}
         <div className="shrink-0 border-t border-[#EEEDEC] bg-[#FCFAF8]">
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
             {step === 'case' ? (
               <>
                 <div className="flex flex-col gap-0.5">
