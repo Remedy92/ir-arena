@@ -13,6 +13,9 @@
 const MICRO_USD_PER_USD = 1_000_000;
 export const MICRO_USD_PER_CENT = 10_000;
 
+/** New-account starter wallet credit. */
+export const STARTER_WALLET_MICRO_USD = 500_000; // $0.50
+
 /** Stripe metadata guard so IR Arena events cannot be confused with another app. */
 export const BILLING_APP_ID = 'ir-arena';
 export const BILLING_TOPUP_PURPOSE = 'wallet_topup';

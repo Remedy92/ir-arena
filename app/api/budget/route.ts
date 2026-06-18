@@ -1,10 +1,9 @@
 import { verifySession } from '@/lib/auth/dal';
+import { STARTER_WALLET_MICRO_USD } from '@/lib/billing';
 import { getSql } from '@/lib/db';
 import { repairStaleUsageReservations } from '@/lib/usage/settle';
 
 export const runtime = 'nodejs';
-
-const DEFAULT_CAP_MICRO_USD = 50_000; // $0.05, matches the user_budget default
 
 /**
  * Remaining spend budget for the signed-in user. Drives the "x¢ left" indicator
@@ -25,7 +24,9 @@ export async function GET() {
   `;
 
   const row = rows[0];
-  const capMicroUsd = row ? Number(row.cap_micro_usd) : DEFAULT_CAP_MICRO_USD;
+  const capMicroUsd = row
+    ? Number(row.cap_micro_usd)
+    : STARTER_WALLET_MICRO_USD;
   const spentMicroUsd = row ? Number(row.spent_micro_usd) : 0;
   const reservedMicroUsd = row ? Number(row.reserved_micro_usd) : 0;
   const remainingMicroUsd = Math.max(

@@ -2,7 +2,7 @@
 
 Central doc for architecture, progress, and deployment.
 
-**Last updated:** 2026-06-14
+**Last updated:** 2026-06-18
 **Orchestrator:** main agent  
 **Repo:** https://github.com/Remedy92/ir-arena  
 **Production:** https://ir-arena.vercel.app
@@ -25,14 +25,25 @@ User → public setup (/) → sign in if needed → authenticated run (/run)
                                                                             after() settlement
 ```
 
-## Gateway catalog (verified 2026-06-06)
+## Gateway catalog (verified 2026-06-18)
 
 | Model | Slug | Status |
 |-------|------|--------|
 | GPT-5.5 | `openai/gpt-5.5` | ✓ |
+| GPT-5.4 Mini | `openai/gpt-5.4-mini` | ✓ latest mini-tier OpenAI arm |
+| GPT-5.4 Nano | `openai/gpt-5.4-nano` | ✓ latest nano-tier OpenAI arm |
 | Claude Opus 4.8 | `anthropic/claude-opus-4.8` | ✓ |
+| Claude Sonnet 4.6 | `anthropic/claude-sonnet-4.6` | ✓ latest Sonnet arm |
 | Gemini 3.5 Flash | `google/gemini-3.5-flash` | ✓ |
 | Gemma 4 31B | `google/gemma-4-31b-it` | ✓ substitute arm; not analyzed as MedGemma |
+| GLM 5.2 | `zai/glm-5.2` | ✓ latest Z.ai arm |
+| Qwen 3.7 Plus | `alibaba/qwen3.7-plus` | ✓ latest cheap Alibaba arm |
+| DeepSeek V4 Flash | `deepseek/deepseek-v4-flash` | ✓ cheap DeepSeek arm |
+| DeepSeek V4 Pro | `deepseek/deepseek-v4-pro` | ✓ latest DeepSeek arm |
+| Kimi K2.6 | `moonshotai/kimi-k2.6` | ✓ latest Moonshot arm |
+| MiniMax M3 | `minimax/minimax-m3` | ✓ latest MiniMax arm |
+| Step 3.7 Flash | `stepfun/step-3.7-flash` | ✓ latest StepFun flash arm |
+| MiMo M2.5 | `xiaomi/mimo-v2.5` | ✓ latest Xiaomi arm |
 
 ## Progress
 

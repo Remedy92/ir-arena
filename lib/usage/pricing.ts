@@ -15,16 +15,21 @@ const MAX_OUTPUT_TOKENS = 2_000;
 // regenerate with `node --env-file=.env.local scripts/dump-pricing.mjs`.
 const STATIC_FALLBACK_MICRO_USD: Record<string, number> = {
   'openai/gpt-5.5': 80_000,
-  'openai/gpt-5': 25_000,
-  'openai/gpt-4.1': 24_000,
+  'openai/gpt-5.4-mini': 12_000,
+  'openai/gpt-5.4-nano': 3_300,
   'anthropic/claude-opus-4.8': 70_000,
-  'anthropic/claude-opus-4': 210_000,
-  'anthropic/claude-sonnet-4.5': 42_000,
+  'anthropic/claude-sonnet-4.6': 42_000,
   'google/gemini-3.5-flash': 24_000,
-  'google/gemini-2.5-pro': 25_000,
   'google/gemma-4-31b-it': 1_360,
   'xai/grok-4.3': 10_000,
-  'deepseek/deepseek-v3': 3_320,
+  'zai/glm-5.2': 16_000,
+  'alibaba/qwen3.7-plus': 4_800,
+  'deepseek/deepseek-v4-flash': 1_121,
+  'deepseek/deepseek-v4-pro': 3_480,
+  'moonshotai/kimi-k2.6': 11_800,
+  'minimax/minimax-m3': 3_600,
+  'stepfun/step-3.7-flash': 3_100,
+  'xiaomi/mimo-v2.5': 1_121,
   'meta/llama-4-maverick': 2_900,
 };
 
@@ -74,10 +79,9 @@ async function loadPricing(): Promise<Map<string, Pricing>> {
  * fetched. The markup is applied last so ceiling and settled charge use the same
  * multiplier and stay consistent.
  *
- * Note: against the $0.05 free-trial balance, frontier models legitimately exceed
- * it in a single call (e.g. Opus-4 ≈ $0.23 raw, more after markup), so a fresh
- * user's reservation for them is rejected outright until they top up — that is
- * correct, intended enforcement, not a bug.
+ * Note: expensive multi-model comparisons can still exceed the starter wallet,
+ * so a fresh user's reservation for those calls is rejected outright until they
+ * top up — that is correct, intended enforcement, not a bug.
  */
 export async function getCeilingMicroUsd(modelSlug: string): Promise<number> {
   const pricing = (await loadPricing()).get(modelSlug);

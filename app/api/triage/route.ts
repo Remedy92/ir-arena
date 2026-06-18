@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     await repairStaleUsageReservations();
 
     // Pre-flight: atomically reserve this call's worst-case cost. Reject BEFORE
-    // hitting the model if it would push the user over their $0.05 cap. This
+    // hitting the model if it would push the user over their wallet cap. This
     // correctly bounds the 2–12 parallel fan-out and a brand-new user's first run.
     const reservation = await reserveBudget(userId, model);
     if (!reservation.ok) {

@@ -103,18 +103,18 @@ console.log('=== Spend-cap integration test (synthetic user, real DB + gateway) 
 console.log(`BILLING_MARKUP=${BILLING_MARKUP}x`);
 
 console.log('\n[1] Cheap model under cap: reserve → run → settle marked-up real cost');
-const r1 = await reserve('deepseek/deepseek-v3');
+const r1 = await reserve('deepseek/deepseek-v4-flash');
 console.log(`  reserve ok=${r1.ok}, ceiling=${fmt(r1.ceil)}`);
-const s1 = await settle(r1.reservationId, r1.ceil, 'deepseek/deepseek-v3');
+const s1 = await settle(r1.reservationId, r1.ceil, 'deepseek/deepseek-v4-flash');
 console.log(`  settled status=${s1.status}, customer charge=${fmt(s1.actual)} (tokens in/out=${s1.usage?.inputTokens}/${s1.usage?.outputTokens})`);
 console.log(`  -> charge ${s1.actual < r1.ceil ? 'BELOW' : '>='} ceiling — reservation released, spent=actual`);
 const b1 = await budget();
 console.log(`  budget now: spent=${fmt(+b1.spent_micro_usd)} reserved=${fmt(+b1.reserved_micro_usd)} cap=${fmt(+b1.cap_micro_usd)}`);
 
-console.log('\n[2] Frontier model on a FRESH $0.05 cap (single call exceeds cap)');
+console.log('\n[2] Frontier model on an artificial 5¢ cap (single call exceeds cap)');
 await sql`UPDATE user_budget SET spent_micro_usd=0, reserved_micro_usd=0, cap_micro_usd=50000 WHERE user_id=${USER}`;
-const r2 = await reserve('anthropic/claude-opus-4');
-console.log(`  opus-4 ceiling=${fmt(r2.ceil)} -> reserve ok=${r2.ok}  ${r2.ok ? '' : '✓ 402 budget_exceeded (correct — one Opus call > $0.05)'}`);
+const r2 = await reserve('anthropic/claude-opus-4.8');
+console.log(`  opus-4.8 ceiling=${fmt(r2.ceil)} -> reserve ok=${r2.ok}  ${r2.ok ? '' : '✓ 402 budget_exceeded (correct — one Opus call > 5¢)'}`);
 
 console.log('\n[3] Crossing the cap mid-budget: spent already 4.9¢, try another model');
 await sql`UPDATE user_budget SET spent_micro_usd=49000, reserved_micro_usd=0, cap_micro_usd=50000 WHERE user_id=${USER}`;

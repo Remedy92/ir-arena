@@ -1,3 +1,4 @@
+import { STARTER_WALLET_MICRO_USD } from '@/lib/billing';
 import { getSql } from '@/lib/db';
 import { getCeilingMicroUsd } from '@/lib/usage/pricing';
 
@@ -28,8 +29,8 @@ export async function reserveBudget(
 
   const [, inserted] = await getSql().transaction((tx) => [
     tx`
-      INSERT INTO user_budget (user_id)
-      VALUES (${userId})
+      INSERT INTO user_budget (user_id, cap_micro_usd)
+      VALUES (${userId}, ${STARTER_WALLET_MICRO_USD})
       ON CONFLICT (user_id) DO NOTHING
     `,
     tx`
