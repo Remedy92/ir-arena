@@ -37,12 +37,11 @@ User → public setup (/) → sign in if needed → authenticated run (/run)
 | Gemini 3.5 Flash | `google/gemini-3.5-flash` | ✓ |
 | Gemma 4 31B | `google/gemma-4-31b-it` | ✓ substitute arm; not analyzed as MedGemma |
 | GLM 5.2 | `zai/glm-5.2` | ✓ latest Z.ai arm |
-| Qwen 3.7 Plus | `alibaba/qwen3.7-plus` | ✓ latest cheap Alibaba arm |
+| Qwen 3.7 Plus | `alibaba/qwen3.7-plus` | ✓ latest cheap Alibaba arm; ZDR route ordered to TogetherAI |
 | DeepSeek V4 Flash | `deepseek/deepseek-v4-flash` | ✓ cheap DeepSeek arm |
 | DeepSeek V4 Pro | `deepseek/deepseek-v4-pro` | ✓ latest DeepSeek arm |
 | Kimi K2.6 | `moonshotai/kimi-k2.6` | ✓ latest Moonshot arm |
 | MiniMax M3 | `minimax/minimax-m3` | ✓ latest MiniMax arm |
-| Step 3.7 Flash | `stepfun/step-3.7-flash` | ✓ latest StepFun flash arm |
 | MiMo M2.5 | `xiaomi/mimo-v2.5` | ✓ latest Xiaomi arm |
 
 ## Progress

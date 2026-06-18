@@ -18,7 +18,8 @@ import {
   type BlindLabel,
   type ModelConfig,
 } from '@/lib/models';
-import { getPendingRun } from '@/lib/run-store';
+import { type ReasoningEffort } from '@/lib/reasoning';
+import { defaultPendingRunReasoning, getPendingRun } from '@/lib/run-store';
 import { shuffleModels } from '@/lib/shuffle';
 import type { ModelCardSlotState } from '@/lib/use-triage-stream';
 
@@ -49,6 +50,9 @@ export default function RunPage() {
     emptyCaseFields(),
   );
   const [models, setModels] = useState<ModelConfig[]>([]);
+  const [reasoning, setReasoning] = useState<ReasoningEffort>(() =>
+    defaultPendingRunReasoning(),
+  );
   const [shuffledSlots, setShuffledSlots] = useState<ShuffledSlot[]>([]);
   const [runId, setRunId] = useState(0);
   const [revealModels, setRevealModels] = useState(false);
@@ -69,6 +73,7 @@ export default function RunPage() {
 
         if (resolved.length >= 2) {
           setCaseFields(pending.caseFields);
+          setReasoning(pending.reasoning);
           setModels(resolved);
           setShuffledSlots(shuffleModels(resolved));
           setRunId(1);
@@ -214,6 +219,7 @@ export default function RunPage() {
               slotStateList={slotStateList}
               revealModels={revealModels}
               caseText={caseText}
+              reasoning={reasoning}
               runId={runId}
               getStartDelayMs={getModelStartDelayMs}
               getStableHandler={getStableHandler}

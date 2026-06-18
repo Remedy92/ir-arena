@@ -12,6 +12,7 @@ import type { DeepPartial } from 'ai';
 import { DecisionBadge } from '@/components/decision-badge';
 import { Button } from '@/components/ui/button';
 import type { BlindLabel, ModelConfig } from '@/lib/models';
+import type { ReasoningEffort } from '@/lib/reasoning';
 import { formatConfidencePercent, type TriageResult } from '@/lib/schema';
 import {
   useTriageStream,
@@ -24,6 +25,7 @@ interface LiveModelCardProps {
   model: ModelConfig;
   revealModels: boolean;
   caseText: string;
+  reasoning: ReasoningEffort;
   runId: number;
   startDelayMs?: number;
   slotIndex: number;
@@ -67,6 +69,7 @@ export function LiveModelCard({
   model,
   revealModels,
   caseText,
+  reasoning,
   runId,
   startDelayMs = 0,
   slotIndex,
@@ -84,6 +87,7 @@ export function LiveModelCard({
     blindLabel,
     model,
     caseText,
+    reasoning,
     runId,
     startDelayMs,
     onStateChange,

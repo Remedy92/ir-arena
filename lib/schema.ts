@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
 import { isKnownModelSlug } from './models';
+import {
+  DEFAULT_REASONING_EFFORT,
+  REASONING_EFFORTS,
+} from './reasoning';
 
 const DECISIONS = [
   'EMBOLIZATION',
@@ -78,6 +82,7 @@ export const triageRequestSchema = z.object({
     .string()
     .trim()
     .refine(isKnownModelSlug, { message: 'Unsupported model slug' }),
+  reasoning: z.enum(REASONING_EFFORTS).default(DEFAULT_REASONING_EFFORT),
 });
 
 export function formatConfidencePercent(

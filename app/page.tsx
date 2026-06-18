@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { CaseInput } from '@/components/case-input';
 import { DisclaimerStrip } from '@/components/disclaimer-strip';
 import { ModelPicker } from '@/components/model-picker';
+import { ReasoningControl } from '@/components/reasoning-control';
 import { TopBar } from '@/components/top-bar';
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth/client';
@@ -17,7 +18,15 @@ import {
   type CaseFields,
 } from '@/lib/cases';
 import { hasSubstitutionFootnote } from '@/lib/models';
-import { getPendingRun, setPendingRun } from '@/lib/run-store';
+import {
+  defaultPendingRunReasoning,
+  getPendingRun,
+  setPendingRun,
+} from '@/lib/run-store';
+import {
+  getReasoningEffortLabel,
+  type ReasoningEffort,
+} from '@/lib/reasoning';
 import {
   TRIAGE_REQUEST_MAX_CASE_LENGTH,
   TRIAGE_REQUEST_MIN_CASE_LENGTH,
@@ -33,6 +42,9 @@ export default function SetupPage() {
     presetToCaseFields(DEFAULT_PRESET),
   );
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET.id);
+  const [reasoning, setReasoning] = useState<ReasoningEffort>(() =>
+    defaultPendingRunReasoning(),
+  );
   const [selectedModels, setSelectedModels] = useSelectedModels();
   const { data: session } = authClient.useSession();
 
@@ -48,6 +60,7 @@ export default function SetupPage() {
         if (pending.presetId) {
           setSelectedPresetId(pending.presetId);
         }
+        setReasoning(pending.reasoning);
       }
     });
     return () => {
@@ -89,12 +102,21 @@ export default function SetupPage() {
       caseFields,
       presetId: selectedPresetId,
       modelIds: selectedModels.map((model) => model.id),
+      reasoning,
     });
     // Run is gated. If signed out, go straight to sign-in with an explicit
     // staged-run callback request instead of pushing /run and bouncing off the
     // proxy. The pending run survives the OAuth round-trip in sessionStorage.
     router.push(session ? '/run' : '/sign-in?callbackURL=%2Frun');
-  }, [canRun, caseFields, selectedPresetId, selectedModels, router, session]);
+  }, [
+    canRun,
+    caseFields,
+    selectedPresetId,
+    selectedModels,
+    reasoning,
+    router,
+    session,
+  ]);
 
   const substitutionFootnote =
     selectedModels.find(hasSubstitutionFootnote)?.footnote;
@@ -127,10 +149,16 @@ export default function SetupPage() {
 
           {/* Two-column config — model picker + case prep */}
           <div className="grid flex-1 gap-5 md:min-h-0 md:grid-cols-[19rem_1fr] md:overflow-hidden lg:grid-cols-[21rem_1fr]">
-            <aside className="flex flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:min-h-0 md:overflow-y-auto">
-              <ModelPicker
-                selectedModels={selectedModels}
-                onSelectionChange={setSelectedModels}
+            <aside className="flex flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:min-h-0">
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <ModelPicker
+                  selectedModels={selectedModels}
+                  onSelectionChange={setSelectedModels}
+                />
+              </div>
+              <ReasoningControl
+                value={reasoning}
+                onValueChange={setReasoning}
               />
             </aside>
 
@@ -151,7 +179,8 @@ export default function SetupPage() {
             <div className="flex flex-col gap-0.5">
               <span className="font-mono text-[11px] tabular-nums text-[#67625B]">
                 {selectedModels.length}{' '}
-                {selectedModels.length === 1 ? 'model' : 'models'} selected
+                {selectedModels.length === 1 ? 'model' : 'models'} selected ·{' '}
+                reasoning {getReasoningEffortLabel(reasoning)}
               </span>
               {setupBlockReason ? (
                 <span className="text-[11px] text-[#67625B]">

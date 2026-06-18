@@ -6,6 +6,7 @@ import type { DeepPartial } from 'ai';
 import type { z } from 'zod';
 
 import type { BlindLabel, ModelConfig } from '@/lib/models';
+import type { ReasoningEffort } from '@/lib/reasoning';
 import {
   normalizeTriagePartial,
   triageClientSchema,
@@ -32,6 +33,7 @@ export interface UseTriageStreamParams {
   blindLabel: BlindLabel;
   model: ModelConfig;
   caseText: string;
+  reasoning: ReasoningEffort;
   runId: number;
   startDelayMs?: number;
   onStateChange: (state: ModelCardSlotState) => void;
@@ -155,6 +157,7 @@ export function useTriageStream({
   blindLabel,
   model,
   caseText,
+  reasoning,
   runId,
   startDelayMs = 0,
   onStateChange,
@@ -227,8 +230,8 @@ export function useTriageStream({
     setFinalObject(undefined);
     setLatencyMs(undefined);
     startTimeRef.current = performance.now();
-    void submit({ case: caseText, model: model.slug });
-  }, [caseText, model.slug, submit]);
+    void submit({ case: caseText, model: model.slug, reasoning });
+  }, [caseText, model.slug, reasoning, submit]);
 
   useEffect(() => {
     // Each run bumps the parent `key` (…-${runId}), remounting the card with
@@ -238,7 +241,7 @@ export function useTriageStream({
         // Start the clock at the actual request, not before the stagger delay,
         // so staggered cards (e.g. Gemini's +1s offset) report true latency.
         startTimeRef.current = performance.now();
-        void submit({ case: caseText, model: model.slug });
+        void submit({ case: caseText, model: model.slug, reasoning });
       }, startDelayMs);
 
       return () => window.clearTimeout(timer);

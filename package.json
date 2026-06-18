@@ -13,11 +13,11 @@
     "audit:prod": "pnpm audit --prod --audit-level moderate"
   },
   "dependencies": {
-    "@ai-sdk/react": "^3.0.199",
+    "@ai-sdk/react": "4.0.0-beta.185",
     "@base-ui/react": "^1.5.0",
     "@neondatabase/auth": "0.4.2-beta",
     "@neondatabase/serverless": "^1.1.0",
-    "ai": "^6.0.197",
+    "ai": "7.0.0-beta.181",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.17.0",
@@ -32,7 +32,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@ai-sdk/devtools": "^0.0.18",
+    "@ai-sdk/devtools": "1.0.0-beta.32",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -49,5 +49,6 @@
       "better-auth": "1.6.18",
       "postcss": "8.5.15"
     }
-  }
+  },
+  "packageManager": "pnpm@10.33.1+sha512.05ba3c1d5d1c18f68df06470d74055e62d41fc110a0c660db1b2dfb2785327f04cf0f68345d4609bc52089e7fa0343c31593b2f9594e2c5d5da426230acc9820"
 }

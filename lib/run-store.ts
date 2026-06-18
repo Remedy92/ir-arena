@@ -1,4 +1,9 @@
 import { CASE_FIELD_ORDER, emptyCaseFields, type CaseFields } from './cases';
+import {
+  coerceReasoningEffort,
+  DEFAULT_REASONING_EFFORT,
+  type ReasoningEffort,
+} from './reasoning';
 
 /**
  * Cross-route hand-off for a configured comparison. The setup page (`/`) writes
@@ -21,6 +26,8 @@ export interface PendingRun {
   presetId: string;
   /** Snapshot of selected model ids, in selection order. */
   modelIds: string[];
+  /** Shared provider-agnostic reasoning effort for every model in the run. */
+  reasoning: ReasoningEffort;
 }
 
 function coerceCaseFields(input: unknown): CaseFields {
@@ -88,10 +95,15 @@ export function getPendingRun(): PendingRun | null {
       caseFields: coerceCaseFields(record.caseFields),
       presetId: typeof record.presetId === 'string' ? record.presetId : '',
       modelIds,
+      reasoning: coerceReasoningEffort(record.reasoning),
     };
   } catch {
     return null;
   }
+}
+
+export function defaultPendingRunReasoning(): ReasoningEffort {
+  return DEFAULT_REASONING_EFFORT;
 }
 
 export function clearPendingRun(): void {

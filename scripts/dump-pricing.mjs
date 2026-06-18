@@ -10,7 +10,6 @@ const slugs = [
   'deepseek/deepseek-v4-flash', 'deepseek/deepseek-v4-pro',
   'moonshotai/kimi-k2.6',
   'minimax/minimax-m3',
-  'stepfun/step-3.7-flash',
   'xiaomi/mimo-v2.5',
   'meta/llama-4-maverick',
 ];

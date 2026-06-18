@@ -7,6 +7,7 @@ import { LiveModelCard } from '@/components/run/model-card';
 import { ConsensusStrip } from '@/components/consensus-strip';
 import type { CaseFields } from '@/lib/cases';
 import type { BlindLabel, ModelConfig } from '@/lib/models';
+import type { ReasoningEffort } from '@/lib/reasoning';
 import type { ModelCardSlotState } from '@/lib/use-triage-stream';
 
 interface ArenaSlot {
@@ -20,6 +21,7 @@ interface RunResultsProps {
   slotStateList: ModelCardSlotState[];
   revealModels: boolean;
   caseText: string;
+  reasoning: ReasoningEffort;
   runId: number;
   getStartDelayMs: (model: ModelConfig, index: number) => number;
   getStableHandler: (label: BlindLabel) => (state: ModelCardSlotState) => void;
@@ -42,6 +44,7 @@ export function RunResults({
   slotStateList,
   revealModels,
   caseText,
+  reasoning,
   runId,
   getStartDelayMs,
   getStableHandler,
@@ -64,6 +67,7 @@ export function RunResults({
                 model={slot.model}
                 revealModels={revealModels}
                 caseText={caseText}
+                reasoning={reasoning}
                 runId={runId}
                 slotIndex={index}
                 startDelayMs={getStartDelayMs(slot.model, index)}

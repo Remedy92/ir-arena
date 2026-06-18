@@ -28,7 +28,6 @@ const STATIC_FALLBACK_MICRO_USD: Record<string, number> = {
   'deepseek/deepseek-v4-pro': 3_480,
   'moonshotai/kimi-k2.6': 11_800,
   'minimax/minimax-m3': 3_600,
-  'stepfun/step-3.7-flash': 3_100,
   'xiaomi/mimo-v2.5': 1_121,
   'meta/llama-4-maverick': 2_900,
 };

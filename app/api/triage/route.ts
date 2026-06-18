@@ -1,12 +1,16 @@
-import { Output, streamText } from 'ai';
+import { createTextStreamResponse, streamText } from 'ai';
 import { after } from 'next/server';
 import { ZodError } from 'zod';
 
 import { createTriageModel } from '@/lib/ai-model';
 import { verifyFreshSession } from '@/lib/auth/dal';
 import { SYSTEM_PROMPT } from '@/lib/prompts';
-import { triageRequestSchema, triageSchema } from '@/lib/schema';
-import { STUDY_GENERATION_SETTINGS } from '@/lib/study-settings';
+import { triageRequestSchema } from '@/lib/schema';
+import {
+  getGatewayRoutingOverride,
+  STUDY_GENERATION_SETTINGS,
+} from '@/lib/study-settings';
+import { triageOutput } from '@/lib/triage-output';
 import { reserveBudget } from '@/lib/usage/guard';
 import {
   markUsageGeneration,
@@ -66,7 +70,11 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    const { case: caseText, model } = triageRequestSchema.parse(body);
+    const {
+      case: caseText,
+      model,
+      reasoning,
+    } = triageRequestSchema.parse(body);
 
     await repairStaleUsageReservations();
 
@@ -101,13 +109,20 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model: createTriageModel(model),
-      system: SYSTEM_PROMPT,
+      instructions: SYSTEM_PROMPT,
       prompt: caseText,
-      output: Output.object({ schema: triageSchema }),
+      reasoning,
+      output: triageOutput(),
       ...STUDY_GENERATION_SETTINGS,
       // Attribute gateway spend to the user (visible in the gateway dashboard).
       // This is metadata only — it is NOT injected into the prompt.
-      providerOptions: { gateway: { user: userId } },
+      providerOptions: {
+        gateway: {
+          user: userId,
+          zeroDataRetention: true,
+          ...getGatewayRoutingOverride(model),
+        },
+      },
       onChunk: ({ chunk }) => {
         return captureGenerationId(
           getGatewayGenerationId(
@@ -123,19 +138,20 @@ export async function POST(req: Request) {
 
     // Reconcile the reservation to the gateway's ACTUAL cost after the response
     // has streamed. The result promises resolve once the stream completes, so we
-    // read cost/usage from them rather than racing the onFinish callback. If the
+    // read cost/usage from them rather than racing the onEnd callback. If the
     // stream errored (no generation), settleUsage releases the reservation.
     after(async () => {
       let generationId: string | undefined;
       let usage: { inputTokens?: number; outputTokens?: number } | undefined;
       try {
         await markGenerationPromise;
-        const [providerMetadata, resolvedUsage] = await Promise.all([
-          result.providerMetadata,
+        const [finalStep, resolvedUsage] = await Promise.all([
+          result.finalStep,
           result.usage,
         ]);
         generationId =
-          getGatewayGenerationId(providerMetadata) ?? capturedGenerationId;
+          getGatewayGenerationId(finalStep.providerMetadata) ??
+          capturedGenerationId;
         usage = {
           inputTokens: resolvedUsage?.inputTokens,
           outputTokens: resolvedUsage?.outputTokens,
@@ -154,7 +170,7 @@ export async function POST(req: Request) {
       });
     });
 
-    return result.toTextStreamResponse();
+    return createTextStreamResponse({ stream: result.textStream });
   } catch (error) {
     if (error instanceof ZodError) {
       return Response.json({ error: 'Invalid triage request' }, { status: 400 });

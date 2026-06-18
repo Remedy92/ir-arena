@@ -124,13 +124,6 @@ export const MODEL_CATALOG: ModelConfig[] = [
     dotColor: '#0F766E',
   },
   {
-    id: 'step-3.7-flash',
-    label: 'Step 3.7 Flash',
-    slug: 'stepfun/step-3.7-flash',
-    provider: 'StepFun',
-    dotColor: '#C2410C',
-  },
-  {
     id: 'mimo-v2.5',
     label: 'MiMo M2.5',
     slug: 'xiaomi/mimo-v2.5',
