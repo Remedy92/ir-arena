@@ -18,6 +18,7 @@ const listeners = new Set<() => void>();
 let cachedRaw: string | null = null;
 let cachedModels: ModelConfig[] | null = null;
 let serverSnapshot: ModelConfig[] | null = null;
+let memoryRaw: string | null | undefined;
 
 function parseSelection(raw: string | null): ModelConfig[] {
   // No stored selection (first visit) or unreadable → the verified defaults.
@@ -44,6 +45,10 @@ function parseSelection(raw: string | null): ModelConfig[] {
 }
 
 function readStorage(): string | null {
+  if (memoryRaw !== undefined) {
+    return memoryRaw;
+  }
+
   if (typeof window === 'undefined') {
     return null;
   }
@@ -76,6 +81,7 @@ function subscribe(listener: () => void): () => void {
 
   const onStorage = (event: StorageEvent) => {
     if (event.key === STORAGE_KEY) {
+      memoryRaw = undefined;
       cachedRaw = null; // force recompute on next getSnapshot
       listener();
     }
@@ -90,10 +96,13 @@ function subscribe(listener: () => void): () => void {
 
 function writeSelection(models: ModelConfig[]): void {
   const ids = models.map((model) => model.id);
+  const raw = JSON.stringify(ids);
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+    window.localStorage.setItem(STORAGE_KEY, raw);
+    memoryRaw = undefined;
   } catch {
-    // Ignore quota/availability errors — selection still updates in-memory.
+    // Quota/availability errors are non-fatal; keep the current tab reactive.
+    memoryRaw = raw;
   }
   cachedRaw = null; // invalidate cache so getSnapshot recomputes
   for (const listener of listeners) {

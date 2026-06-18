@@ -3,6 +3,26 @@
 import { useState } from 'react';
 
 import { authClient } from '@/lib/auth/client';
+import { getPendingRun } from '@/lib/run-store';
+
+const DEFAULT_CALLBACK_URL = '/';
+const RUN_CALLBACK_URL = '/run';
+
+function getCallbackURL(): string {
+  if (typeof window === 'undefined') {
+    return DEFAULT_CALLBACK_URL;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const requestedCallback = params.get('callbackURL');
+  const hasStagedRun = getPendingRun() !== null;
+
+  if (requestedCallback === RUN_CALLBACK_URL && hasStagedRun) {
+    return RUN_CALLBACK_URL;
+  }
+
+  return DEFAULT_CALLBACK_URL;
+}
 
 function GoogleGlyph() {
   return (
@@ -35,8 +55,10 @@ export default function SignInPage() {
     setError(null);
     setLoading(true);
     try {
-      // On success the browser is redirected to Google, then back to /run.
-      await authClient.signIn.social({ provider: 'google', callbackURL: '/run' });
+      await authClient.signIn.social({
+        provider: 'google',
+        callbackURL: getCallbackURL(),
+      });
     } catch {
       setError('Could not start Google sign-in. Please try again.');
       setLoading(false);

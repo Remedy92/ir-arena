@@ -13,6 +13,9 @@ const URGENCIES = ['IMMEDIATE', 'URGENT_2H', 'SEMI_ELECTIVE'] as const;
 
 const nonEmptyStudyString = z.string().trim().min(1);
 
+export const TRIAGE_REQUEST_MIN_CASE_LENGTH = 10;
+export const TRIAGE_REQUEST_MAX_CASE_LENGTH = 8000;
+
 const triageObjectSchema = z
   .object({
     decision: z
@@ -66,7 +69,11 @@ export function normalizeTriagePartial(input: unknown): TriagePartial | undefine
 }
 
 export const triageRequestSchema = z.object({
-  case: z.string().trim().min(10).max(8000),
+  case: z
+    .string()
+    .trim()
+    .min(TRIAGE_REQUEST_MIN_CASE_LENGTH)
+    .max(TRIAGE_REQUEST_MAX_CASE_LENGTH),
   model: z
     .string()
     .trim()

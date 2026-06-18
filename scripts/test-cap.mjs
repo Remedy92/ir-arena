@@ -13,11 +13,26 @@ const MICRO = 1_000_000;
 const MAX_IN = 4_000;
 const MAX_OUT = 2_000;
 
+const BILLING_MARKUP = (() => {
+  const parsed = Number(process.env.BILLING_MARKUP);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 2;
+})();
+
+function applyMarkup(rawMicroUsd) {
+  return Math.ceil(rawMicroUsd * BILLING_MARKUP);
+}
+
 async function ceilingMicro(slug) {
   const { models } = await gateway.getAvailableModels();
   const m = models.find((x) => x.id === slug);
   const p = m?.pricing ?? m?.specification?.pricing;
-  return Math.ceil((Number(p.input) * MAX_IN + Number(p.output) * MAX_OUT) * MICRO);
+  const input = Number(p?.input);
+  const output = Number(p?.output);
+  if (!Number.isFinite(input) || !Number.isFinite(output)) {
+    throw new Error(`No live gateway pricing for ${slug}`);
+  }
+  const rawMicroUsd = Math.ceil((input * MAX_IN + output * MAX_OUT) * MICRO);
+  return applyMarkup(rawMicroUsd);
 }
 
 async function reserve(slug) {
@@ -47,23 +62,25 @@ async function settle(reservationId, ceil, slug) {
 
   let actual = 0;
   let status = 'failed';
-  const deadline = Date.now() + 30_000;
-  let wait = 4_000;
-  while (Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, wait));
-    wait = 3_000;
-    try {
-      const info = await gateway.getGenerationInfo({ id: genId });
-      if (typeof info?.totalCost === 'number') {
-        actual = Math.round(info.totalCost * MICRO);
-        status = 'settled';
-        break;
+  if (genId) {
+    const deadline = Date.now() + 30_000;
+    let wait = 4_000;
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, wait));
+      wait = 3_000;
+      try {
+        const info = await gateway.getGenerationInfo({ id: genId });
+        if (typeof info?.totalCost === 'number' && Number.isFinite(info.totalCost)) {
+          actual = applyMarkup(Math.round(info.totalCost * MICRO));
+          status = 'settled';
+          break;
+        }
+      } catch {
+        /* not propagated yet */
       }
-    } catch {
-      /* not propagated yet */
     }
+    if (status === 'failed') actual = ceil; // fail-safe: charge the marked-up ceiling
   }
-  if (status === 'failed') actual = ceil; // fail-safe: charge the ceiling
 
   await sql`UPDATE user_budget
     SET spent_micro_usd = spent_micro_usd + ${actual},
@@ -83,13 +100,14 @@ await sql`DELETE FROM usage_events WHERE user_id=${USER}`;
 await sql`DELETE FROM user_budget WHERE user_id=${USER}`;
 
 console.log('=== Spend-cap integration test (synthetic user, real DB + gateway) ===');
+console.log(`BILLING_MARKUP=${BILLING_MARKUP}x`);
 
-console.log('\n[1] Cheap model under cap: reserve → run → settle REAL cost');
+console.log('\n[1] Cheap model under cap: reserve → run → settle marked-up real cost');
 const r1 = await reserve('deepseek/deepseek-v3');
 console.log(`  reserve ok=${r1.ok}, ceiling=${fmt(r1.ceil)}`);
 const s1 = await settle(r1.reservationId, r1.ceil, 'deepseek/deepseek-v3');
-console.log(`  settled status=${s1.status}, REAL cost=${fmt(s1.actual)} (tokens in/out=${s1.usage?.inputTokens}/${s1.usage?.outputTokens})`);
-console.log(`  -> real cost ${s1.actual < r1.ceil ? 'BELOW' : '>='} ceiling — reservation released, spent=actual`);
+console.log(`  settled status=${s1.status}, customer charge=${fmt(s1.actual)} (tokens in/out=${s1.usage?.inputTokens}/${s1.usage?.outputTokens})`);
+console.log(`  -> charge ${s1.actual < r1.ceil ? 'BELOW' : '>='} ceiling — reservation released, spent=actual`);
 const b1 = await budget();
 console.log(`  budget now: spent=${fmt(+b1.spent_micro_usd)} reserved=${fmt(+b1.reserved_micro_usd)} cap=${fmt(+b1.cap_micro_usd)}`);
 

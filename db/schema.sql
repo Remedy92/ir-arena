@@ -54,3 +54,6 @@ CREATE TABLE IF NOT EXISTS usage_events (
 
 CREATE INDEX IF NOT EXISTS usage_events_user_idx ON usage_events(user_id);
 CREATE INDEX IF NOT EXISTS usage_events_gen_idx ON usage_events(generation_id);
+CREATE INDEX IF NOT EXISTS usage_events_stale_reserved_idx
+  ON usage_events(created_at)
+  WHERE status = 'reserved';

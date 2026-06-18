@@ -26,30 +26,31 @@ export async function reserveBudget(
 ): Promise<ReserveResult> {
   const ceilingMicroUsd = await getCeilingMicroUsd(modelSlug);
 
-  await getSql()`
-    INSERT INTO user_budget (user_id)
-    VALUES (${userId})
-    ON CONFLICT (user_id) DO NOTHING
-  `;
+  const [, inserted] = await getSql().transaction((tx) => [
+    tx`
+      INSERT INTO user_budget (user_id)
+      VALUES (${userId})
+      ON CONFLICT (user_id) DO NOTHING
+    `,
+    tx`
+      WITH reserved AS (
+        UPDATE user_budget
+        SET reserved_micro_usd = reserved_micro_usd + ${ceilingMicroUsd},
+            updated_at = NOW()
+        WHERE user_id = ${userId}
+          AND spent_micro_usd + reserved_micro_usd + ${ceilingMicroUsd} <= cap_micro_usd
+        RETURNING user_id
+      )
+      INSERT INTO usage_events (user_id, model_slug, cost_micro_usd, status)
+      SELECT user_id, ${modelSlug}, ${ceilingMicroUsd}, 'reserved'
+      FROM reserved
+      RETURNING id
+    `,
+  ]);
 
-  const reserved = await getSql()`
-    UPDATE user_budget
-    SET reserved_micro_usd = reserved_micro_usd + ${ceilingMicroUsd},
-        updated_at = NOW()
-    WHERE user_id = ${userId}
-      AND spent_micro_usd + reserved_micro_usd + ${ceilingMicroUsd} <= cap_micro_usd
-    RETURNING reserved_micro_usd
-  `;
-
-  if (reserved.length === 0) {
+  if (inserted.length === 0) {
     return { ok: false, reason: 'budget_exceeded' };
   }
-
-  const inserted = await getSql()`
-    INSERT INTO usage_events (user_id, model_slug, cost_micro_usd, status)
-    VALUES (${userId}, ${modelSlug}, ${ceilingMicroUsd}, 'reserved')
-    RETURNING id
-  `;
 
   return {
     ok: true,

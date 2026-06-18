@@ -2,7 +2,7 @@
 
 Central doc for architecture, progress, and deployment.
 
-**Last updated:** 2026-06-08  
+**Last updated:** 2026-06-14
 **Orchestrator:** main agent  
 **Repo:** https://github.com/Remedy92/ir-arena  
 **Production:** https://ir-arena.vercel.app
@@ -10,15 +10,19 @@ Central doc for architecture, progress, and deployment.
 ## Architecture
 
 ```
-User → CaseInput → Run
-         ↓
-    shuffle(models) → A/B/C/D labels
-         ↓
-    4× ModelCard (useObject) ──parallel──► POST /api/triage
+User → public setup (/) → sign in if needed → authenticated run (/run)
          ↓                                      ↓
-    Agreement UI ◄── valid finished results streamText + Output.object
-                                               ↓
-                                         Vercel AI Gateway
+    choose models/case                   shuffle(selected models)
+                                                ↓
+    Agreement UI ◄── valid finished results  ModelCard(useObject) ──parallel──► POST /api/triage
+                                                                                     ↓
+                                                      verifySession → reserve wallet budget
+                                                                                     ↓
+                                                                  streamText + Output.object
+                                                                                     ↓
+                                                                               AI Gateway
+                                                                                     ↓
+                                                                            after() settlement
 ```
 
 ## Gateway catalog (verified 2026-06-06)
@@ -55,24 +59,35 @@ User → CaseInput → Run
 app/
   layout.tsx       Newsreader + Inter + Geist Mono, TooltipProvider
   globals.css      design tokens (#FCFAF8 canvas)
-  page.tsx         orchestration shell
+  page.tsx         public setup shell
+  run/page.tsx     authenticated comparison shell
   api/triage/      Node streaming route
-components/        UI (top-bar, hero, case-input, model-card, consensus)
-lib/               schema, models, cases, consensus, shuffle
+components/        UI (top-bar, case-input, model-picker, run results, consensus)
+lib/               schema, models, cases, auth, usage, billing, consensus, shuffle
 design.md          visual spec
 ```
 
 ## Demo script (supervisor)
 
 1. Open https://ir-arena.vercel.app → preset **#2 Pelvic trauma** is pre-selected
-2. Click **Run Triage** (blinded A–D)
-3. Watch 4 cards stream in parallel
-4. Toggle **Reveal models** → read **Agreement** strip
+2. Select at least two models, then click **Run comparison**
+3. Sign in if prompted; `/run` starts the blinded comparison
+4. Watch cards stream in parallel, then reveal identities and read the agreement strip
 
 ## Env
 
+The setup page (`/`) is public and can be viewed without local secrets. Running a comparison or using wallet top-ups needs the service env below.
+
 ```bash
-AI_GATEWAY_API_KEY=   # only required secret
+AI_GATEWAY_API_KEY=          # Vercel AI Gateway; required for real model calls
+DATABASE_URL=                # Neon Postgres spend-cap/wallet tables
+NEON_AUTH_BASE_URL=          # Neon Auth / managed Better Auth base URL
+NEON_AUTH_COOKIE_SECRET=     # signed session cookie secret, minimum 32 chars
+
+IR_ARENA_APP_URL=            # app origin for Stripe Checkout return URLs
+IR_ARENA_STRIPE_SECRET_KEY=  # app-specific Stripe key; shared STRIPE_* ignored
+IR_ARENA_STRIPE_WEBHOOK_SECRET=
+BILLING_MARKUP=2             # optional; defaults to 2x raw Gateway cost
 ```
 
 ## Debugging (AI SDK DevTools)
@@ -94,10 +109,10 @@ pnpm devtools
 
 - Server whitelists model slugs before calling AI Gateway.
 - All arms receive the same system prompt; no model-specific schema hints.
-- Gateway providers are pinned with `providerOptions.gateway.only` based on the model slug prefix.
+- Gateway providers are not pinned. `lib/study-settings.ts` intentionally avoids `providerOptions.gateway.only` because slug prefixes are model namespaces, not real provider names, and pinning them breaks fallback/ZDR routing.
 - Structured output is strict: exact camelCase keys, no extra keys, required integer confidence.
 - The app no longer infers missing decisions, maps snake_case fields, or fills placeholder result fields for final validation.
-- Current demo still does not persist raw completions, normalized outputs, request metadata, or expert scores; add persistence before treating results as a real study dataset.
+- Current demo persists billing reservations/settlements only; raw completions, normalized outputs, and expert scores are not stored. Add study persistence before treating results as a real dataset.
 
 ### Failure diagnosis (2026-06-06 research, no re-test)
 
@@ -115,4 +130,8 @@ cp .env.example .env.local
 pnpm i && pnpm dev
 pnpm devtools   # optional viewer at :4983
 pnpm build
+
+# Authenticated /api/triage load probes; copy Cookie from a signed-in browser session.
+IR_ARENA_AUTH_COOKIE='...' ./scripts/test-parallel.sh
+IR_ARENA_AUTH_COOKIE='...' ./scripts/test-staggered.sh
 ```

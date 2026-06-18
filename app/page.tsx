@@ -18,6 +18,10 @@ import {
 } from '@/lib/cases';
 import { hasSubstitutionFootnote } from '@/lib/models';
 import { getPendingRun, setPendingRun } from '@/lib/run-store';
+import {
+  TRIAGE_REQUEST_MAX_CASE_LENGTH,
+  TRIAGE_REQUEST_MIN_CASE_LENGTH,
+} from '@/lib/schema';
 import { useSelectedModels } from '@/lib/use-selected-models';
 
 const DEFAULT_PRESET = PRESET_CASES[1];
@@ -35,17 +39,35 @@ export default function SetupPage() {
   // Restore the last configured case when returning from the run page via
   // "Edit comparison" (models are restored separately from localStorage).
   useEffect(() => {
-    const pending = getPendingRun();
-    if (pending) {
-      setCaseFields(pending.caseFields);
-      if (pending.presetId) {
-        setSelectedPresetId(pending.presetId);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      const pending = getPendingRun();
+      if (pending) {
+        setCaseFields(pending.caseFields);
+        if (pending.presetId) {
+          setSelectedPresetId(pending.presetId);
+        }
       }
-    }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const caseText = useMemo(() => assembleCaseText(caseFields), [caseFields]);
-  const canRun = caseText.trim().length >= 10 && selectedModels.length >= 2;
+  const caseLength = caseText.trim().length;
+  const hasEnoughModels = selectedModels.length >= 2;
+  const isCaseTooShort = caseLength < TRIAGE_REQUEST_MIN_CASE_LENGTH;
+  const isCaseTooLong = caseLength > TRIAGE_REQUEST_MAX_CASE_LENGTH;
+  const canRun = hasEnoughModels && !isCaseTooShort && !isCaseTooLong;
+  const setupBlockReason = isCaseTooLong
+    ? `Case is ${caseLength.toLocaleString()} characters after trimming. Keep it at ${TRIAGE_REQUEST_MAX_CASE_LENGTH.toLocaleString()} or fewer to run.`
+    : !hasEnoughModels
+      ? 'Select at least 2 models to run.'
+      : isCaseTooShort
+        ? `Enter at least ${TRIAGE_REQUEST_MIN_CASE_LENGTH} characters of case detail to run.`
+        : undefined;
 
   const handleFieldChange = useCallback((field: CaseField, value: string) => {
     setCaseFields((previous) => ({ ...previous, [field]: value }));
@@ -68,11 +90,10 @@ export default function SetupPage() {
       presetId: selectedPresetId,
       modelIds: selectedModels.map((model) => model.id),
     });
-    // Run is gated. If signed out, go straight to sign-in (which returns to /run
-    // via callbackURL) instead of pushing /run and bouncing off the proxy — that
-    // bounce throws a client "Failed to fetch RSC payload" error. The pending run
-    // is already in sessionStorage and survives the OAuth round-trip.
-    router.push(session ? '/run' : '/sign-in');
+    // Run is gated. If signed out, go straight to sign-in with an explicit
+    // staged-run callback request instead of pushing /run and bouncing off the
+    // proxy. The pending run survives the OAuth round-trip in sessionStorage.
+    router.push(session ? '/run' : '/sign-in?callbackURL=%2Frun');
   }, [canRun, caseFields, selectedPresetId, selectedModels, router, session]);
 
   const substitutionFootnote =
@@ -132,9 +153,9 @@ export default function SetupPage() {
                 {selectedModels.length}{' '}
                 {selectedModels.length === 1 ? 'model' : 'models'} selected
               </span>
-              {!canRun ? (
+              {setupBlockReason ? (
                 <span className="text-[11px] text-[#67625B]">
-                  Select at least 2 models and enter a case to run.
+                  {setupBlockReason}
                 </span>
               ) : null}
               {substitutionFootnote ? (

@@ -1,7 +1,12 @@
 import type Stripe from 'stripe';
 
-import { BILLING_CURRENCY, MICRO_USD_PER_CENT } from '@/lib/billing';
-import { getStripe } from '@/lib/stripe';
+import {
+  BILLING_APP_ID,
+  BILLING_CURRENCY,
+  BILLING_TOPUP_PURPOSE,
+  MICRO_USD_PER_CENT,
+} from '@/lib/billing';
+import { getStripe, getStripeWebhookSecret } from '@/lib/stripe';
 import { creditWallet } from '@/lib/usage/topup';
 
 // Node runtime: signature verification uses Node crypto, and creditWallet hits
@@ -10,10 +15,10 @@ import { creditWallet } from '@/lib/usage/topup';
 export const runtime = 'nodejs';
 
 /**
- * Stripe webhook. Verifies the signature against STRIPE_WEBHOOK_SECRET, then on a
- * paid Checkout Session credits the user's wallet (idempotently). Returns 400 for
- * a bad signature and 500 on a handler error so Stripe retries — creditWallet is
- * idempotent, so retries never double-credit.
+ * Stripe webhook. Verifies the signature against this app's webhook secret, then
+ * on a paid Checkout Session credits the user's wallet (idempotently). Returns
+ * 400 for a bad signature and 500 on a handler error so Stripe retries —
+ * creditWallet is idempotent, so retries never double-credit.
  */
 export async function POST(req: Request) {
   const signature = req.headers.get('stripe-signature');
@@ -24,9 +29,11 @@ export async function POST(req: Request) {
   // Validate the secret explicitly. A missing OR empty secret must never reach
   // constructEvent: an empty HMAC key is forgeable by anyone, so it would turn
   // signature verification into a no-op rather than failing closed.
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!webhookSecret) {
-    console.error('[stripe/webhook] STRIPE_WEBHOOK_SECRET is not configured');
+  let webhookSecret: string;
+  try {
+    webhookSecret = getStripeWebhookSecret();
+  } catch (error) {
+    console.error('[stripe/webhook] webhook secret is not configured:', error);
     return Response.json({ error: 'webhook not configured' }, { status: 500 });
   }
 
@@ -62,13 +69,42 @@ export async function POST(req: Request) {
 }
 
 async function creditFromSession(session: Stripe.Checkout.Session): Promise<void> {
+  if (
+    session.metadata?.app !== BILLING_APP_ID ||
+    session.metadata?.purpose !== BILLING_TOPUP_PURPOSE
+  ) {
+    console.warn('[stripe/webhook] ignoring non-IR-Arena checkout session:', {
+      sessionId: session.id,
+      app: session.metadata?.app ?? null,
+      purpose: session.metadata?.purpose ?? null,
+    });
+    return;
+  }
+
   const userId = session.metadata?.userId ?? session.client_reference_id ?? null;
   const creditedMicroUsd = Number(session.metadata?.creditedMicroUsd);
+  const currency = session.currency?.toLowerCase() ?? null;
+  const amountSubtotalCents = session.amount_subtotal;
 
-  if (!userId || !Number.isFinite(creditedMicroUsd) || creditedMicroUsd <= 0) {
+  if (
+    !userId ||
+    currency !== BILLING_CURRENCY ||
+    !Number.isFinite(creditedMicroUsd) ||
+    creditedMicroUsd <= 0 ||
+    amountSubtotalCents == null ||
+    amountSubtotalCents * MICRO_USD_PER_CENT !== creditedMicroUsd
+  ) {
     console.error(
-      '[stripe/webhook] session missing credit metadata:',
-      session.id,
+      '[stripe/webhook] session failed credit validation:',
+      {
+        sessionId: session.id,
+        userId: userId ?? null,
+        currency,
+        amountSubtotalCents,
+        creditedMicroUsd: Number.isFinite(creditedMicroUsd)
+          ? creditedMicroUsd
+          : null,
+      },
     );
     return;
   }
@@ -78,16 +114,13 @@ async function creditFromSession(session: Stripe.Checkout.Session): Promise<void
       ? session.payment_intent
       : (session.payment_intent?.id ?? null);
 
-  // amount_total is always set for a paid Checkout Session built from line_items,
-  // but the type permits null. Rather than silently record $0 in the audit
-  // ledger, derive the charge from the (USD) credit so the row stays accurate.
-  let amountPaidCents = session.amount_total;
+  // amount_total includes tax; amount_subtotal above is what becomes wallet credit.
+  const amountPaidCents = session.amount_total;
   if (amountPaidCents == null) {
-    amountPaidCents = Math.round(creditedMicroUsd / MICRO_USD_PER_CENT);
     console.warn(
-      `[stripe/webhook] session ${session.id} had no amount_total; recording ` +
-        `${amountPaidCents}c derived from the credited amount`,
+      `[stripe/webhook] session ${session.id} had no amount_total; not crediting`,
     );
+    return;
   }
 
   await creditWallet({
@@ -95,7 +128,7 @@ async function creditFromSession(session: Stripe.Checkout.Session): Promise<void
     stripeSessionId: session.id,
     stripePaymentIntent: paymentIntent,
     amountPaidCents,
-    currency: session.currency ?? BILLING_CURRENCY,
+    currency,
     creditedMicroUsd,
   });
 }

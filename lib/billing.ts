@@ -13,6 +13,10 @@
 const MICRO_USD_PER_USD = 1_000_000;
 export const MICRO_USD_PER_CENT = 10_000;
 
+/** Stripe metadata guard so IR Arena events cannot be confused with another app. */
+export const BILLING_APP_ID = 'ir-arena';
+export const BILLING_TOPUP_PURPOSE = 'wallet_topup';
+
 /**
  * Margin multiplier applied to raw gateway cost when charging the wallet.
  * Override with the BILLING_MARKUP env var (e.g. "1.5"); defaults to 2×.
@@ -28,6 +32,9 @@ export const BILLING_MARKUP: number = (() => {
 
 /** Charge currency for top-ups (ISO 4217, lowercase for Stripe). */
 export const BILLING_CURRENCY = 'usd';
+
+/** Stripe Tax code for cloud AI / digital service credits. */
+export const BILLING_TAX_CODE = 'txcd_10105002';
 
 /** Preset top-up amounts offered in the UI, in whole USD. */
 export const TOPUP_PRESETS_USD = [5, 10, 20, 50] as const;

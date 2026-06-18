@@ -10,6 +10,8 @@ import {
   normalizeTriagePartial,
   triageClientSchema,
   triageRequestSchema,
+  TRIAGE_REQUEST_MAX_CASE_LENGTH,
+  TRIAGE_REQUEST_MIN_CASE_LENGTH,
   type TriageResult,
 } from '@/lib/schema';
 
@@ -49,6 +51,52 @@ export interface TriageStreamResult {
   runSubmit: () => void;
 }
 
+function getResponseErrorMessage(bodyText: string): string {
+  if (bodyText.length === 0) {
+    return '';
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(bodyText);
+    if (typeof parsed === 'object' && parsed !== null) {
+      const record = parsed as Record<string, unknown>;
+      const parts = [record.error, record.message].filter(
+        (part): part is string => typeof part === 'string' && part.length > 0,
+      );
+      if (parts.length > 0) {
+        return parts.join(': ');
+      }
+    }
+  } catch {
+    // Plain text responses are already suitable as error copy input.
+  }
+
+  return bodyText;
+}
+
+const triageFetch: typeof fetch = async (input, init) => {
+  const response = await fetch(input, init);
+  if (response.ok) {
+    return response;
+  }
+
+  const bodyText = await response
+    .clone()
+    .text()
+    .catch(() => '');
+  const bodyMessage = getResponseErrorMessage(bodyText);
+  const statusText = response.statusText || 'Request failed';
+  const message = `${response.status} ${statusText}${
+    bodyMessage ? `: ${bodyMessage}` : ''
+  }`;
+
+  return new Response(message, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+};
+
 export function formatDisplayError(error: Error | undefined): string | undefined {
   if (!error) {
     return undefined;
@@ -65,6 +113,10 @@ export function formatDisplayError(error: Error | undefined): string | undefined
   }
   if (lower.includes('budget_exceeded') || lower.includes('spend cap')) {
     return 'Spend cap reached for your account — this model was not run.';
+  }
+
+  if (lower.includes('400') || lower.includes('invalid triage request')) {
+    return `Invalid triage request — cases must be ${TRIAGE_REQUEST_MIN_CASE_LENGTH.toLocaleString()}-${TRIAGE_REQUEST_MAX_CASE_LENGTH.toLocaleString()} characters after trimming, and the selected model must be supported. Return to setup, adjust the request, and run again.`;
   }
 
   // An entirely-empty stream (no object produced at all) is a gateway/provider
@@ -164,6 +216,7 @@ export function useTriageStream({
   >({
     api: '/api/triage',
     schema: triageClientSchema,
+    fetch: triageFetch,
     onFinish: handleFinish,
     onError: handleRequestError,
   });

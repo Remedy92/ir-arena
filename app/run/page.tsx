@@ -58,20 +58,27 @@ export default function RunPage() {
 
   // Load the configured comparison once, then auto-start the run.
   useEffect(() => {
-    const pending = getPendingRun();
-    if (pending) {
-      const resolved = pending.modelIds
-        .map((id) => getModelById(id))
-        .filter((model): model is ModelConfig => model !== undefined);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      const pending = getPendingRun();
+      if (pending) {
+        const resolved = pending.modelIds
+          .map((id) => getModelById(id))
+          .filter((model): model is ModelConfig => model !== undefined);
 
-      if (resolved.length >= 2) {
-        setCaseFields(pending.caseFields);
-        setModels(resolved);
-        setShuffledSlots(shuffleModels(resolved));
-        setRunId(1);
+        if (resolved.length >= 2) {
+          setCaseFields(pending.caseFields);
+          setModels(resolved);
+          setShuffledSlots(shuffleModels(resolved));
+          setRunId(1);
+        }
       }
-    }
-    setHydrated(true);
+      setHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const caseText = useMemo(() => assembleCaseText(caseFields), [caseFields]);
@@ -133,6 +140,25 @@ export default function RunPage() {
   const handleEdit = useCallback(() => {
     router.push('/');
   }, [router]);
+
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-full flex-col">
+        <TopBar mode="Side by side" />
+        <DisclaimerStrip />
+        <main className="flex flex-1 items-center justify-center px-4 py-16">
+          <div className="flex max-w-sm flex-col items-center gap-3 text-center">
+            <h1 className="font-['Newsreader',Georgia,serif] text-2xl font-light tracking-tight text-[#2E2B29]">
+              Preparing comparison
+            </h1>
+            <p className="text-sm leading-relaxed text-[#67625B]">
+              Loading the staged case and selected models.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   // Nothing staged (e.g. direct navigation to /run) — guide back to setup.
   if (hydrated && shuffledSlots.length === 0) {

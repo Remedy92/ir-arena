@@ -12,3 +12,16 @@ export const verifySession = cache(async () => {
   const { data: session } = await getAuth().getSession();
   return session ?? null;
 });
+
+/**
+ * Fresh server-side session check for money/spend mutations. Neon Auth can serve
+ * `getSession()` from a signed session-data cookie cache; that is fine for UI
+ * affordances, but wallet and model-spend routes should observe upstream
+ * revocation as soon as possible.
+ */
+export async function verifyFreshSession() {
+  const { data: session } = await getAuth().getSession({
+    query: { disableCookieCache: 'true' },
+  });
+  return session ?? null;
+}

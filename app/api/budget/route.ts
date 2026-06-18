@@ -1,5 +1,6 @@
 import { verifySession } from '@/lib/auth/dal';
 import { getSql } from '@/lib/db';
+import { repairStaleUsageReservations } from '@/lib/usage/settle';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +15,8 @@ export async function GET() {
   if (!session) {
     return Response.json({ error: 'unauthorized' }, { status: 401 });
   }
+
+  await repairStaleUsageReservations();
 
   const rows = await getSql()`
     SELECT spent_micro_usd, reserved_micro_usd, cap_micro_usd

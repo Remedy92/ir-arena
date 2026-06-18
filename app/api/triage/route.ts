@@ -3,30 +3,72 @@ import { after } from 'next/server';
 import { ZodError } from 'zod';
 
 import { createTriageModel } from '@/lib/ai-model';
-import { verifySession } from '@/lib/auth/dal';
+import { verifyFreshSession } from '@/lib/auth/dal';
 import { SYSTEM_PROMPT } from '@/lib/prompts';
 import { triageRequestSchema, triageSchema } from '@/lib/schema';
 import { STUDY_GENERATION_SETTINGS } from '@/lib/study-settings';
 import { reserveBudget } from '@/lib/usage/guard';
-import { settleUsage } from '@/lib/usage/settle';
+import {
+  markUsageGeneration,
+  repairStaleUsageReservations,
+  settleUsage,
+} from '@/lib/usage/settle';
 
 // Node.js runtime required for @ai-sdk/devtools local capture (fs + .devtools/),
 // and for next/server `after()` used to reconcile spend post-response.
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 120;
+
+function getGatewayGenerationId(metadata: unknown): string | undefined {
+  if (typeof metadata !== 'object' || metadata === null) {
+    return undefined;
+  }
+  const gateway = (metadata as { gateway?: unknown }).gateway;
+  if (typeof gateway !== 'object' || gateway === null) {
+    return undefined;
+  }
+  const generationId = (gateway as { generationId?: unknown }).generationId;
+  return typeof generationId === 'string' ? generationId : undefined;
+}
+
+function getErrorGenerationId(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null) {
+    return undefined;
+  }
+  const generationId = (error as { generationId?: unknown }).generationId;
+  return typeof generationId === 'string' ? generationId : undefined;
+}
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { case: caseText, model } = triageRequestSchema.parse(body);
-
     // Every model call is attributed to a signed-in user and counted against
     // their lifetime spend cap. Verify auth here (not just in the proxy).
-    const session = await verifySession();
+    const session = await verifyFreshSession();
     if (!session) {
       return Response.json({ error: 'unauthorized' }, { status: 401 });
     }
     const userId = session.user.id;
+
+    const contentType = req.headers.get('content-type') ?? '';
+    if (!contentType.toLowerCase().includes('application/json')) {
+      return Response.json(
+        { error: 'Expected JSON request body' },
+        { status: 415 },
+      );
+    }
+
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return Response.json(
+        { error: 'Invalid JSON request body' },
+        { status: 400 },
+      );
+    }
+    const { case: caseText, model } = triageRequestSchema.parse(body);
+
+    await repairStaleUsageReservations();
 
     // Pre-flight: atomically reserve this call's worst-case cost. Reject BEFORE
     // hitting the model if it would push the user over their $0.05 cap. This
@@ -42,6 +84,21 @@ export async function POST(req: Request) {
       );
     }
 
+    let capturedGenerationId: string | undefined;
+    let markGenerationPromise: Promise<void> | undefined;
+    const captureGenerationId = (generationId: string | undefined) => {
+      if (!generationId || capturedGenerationId) {
+        return markGenerationPromise;
+      }
+      capturedGenerationId = generationId;
+      markGenerationPromise = markUsageGeneration({
+        reservationId: reservation.reservationId,
+        userId,
+        generationId,
+      });
+      return markGenerationPromise;
+    };
+
     const result = streamText({
       model: createTriageModel(model),
       system: SYSTEM_PROMPT,
@@ -51,7 +108,15 @@ export async function POST(req: Request) {
       // Attribute gateway spend to the user (visible in the gateway dashboard).
       // This is metadata only — it is NOT injected into the prompt.
       providerOptions: { gateway: { user: userId } },
+      onChunk: ({ chunk }) => {
+        return captureGenerationId(
+          getGatewayGenerationId(
+            (chunk as { providerMetadata?: unknown }).providerMetadata,
+          ),
+        );
+      },
       onError: ({ error }) => {
+        void captureGenerationId(getErrorGenerationId(error));
         console.error(`[triage] stream error for ${model}:`, error);
       },
     });
@@ -64,20 +129,20 @@ export async function POST(req: Request) {
       let generationId: string | undefined;
       let usage: { inputTokens?: number; outputTokens?: number } | undefined;
       try {
+        await markGenerationPromise;
         const [providerMetadata, resolvedUsage] = await Promise.all([
           result.providerMetadata,
           result.usage,
         ]);
-        const gateway = providerMetadata?.gateway as
-          | { generationId?: string }
-          | undefined;
-        generationId = gateway?.generationId;
+        generationId =
+          getGatewayGenerationId(providerMetadata) ?? capturedGenerationId;
         usage = {
           inputTokens: resolvedUsage?.inputTokens,
           outputTokens: resolvedUsage?.outputTokens,
         };
       } catch (error) {
         console.warn(`[triage] no usage for ${model} (stream error):`, error);
+        generationId = capturedGenerationId;
       }
 
       await settleUsage({

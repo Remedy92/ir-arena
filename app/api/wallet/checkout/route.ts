@@ -1,14 +1,17 @@
 import { z } from 'zod';
 
-import { verifySession } from '@/lib/auth/dal';
+import { verifyFreshSession } from '@/lib/auth/dal';
 import {
+  BILLING_APP_ID,
   BILLING_CURRENCY,
+  BILLING_TAX_CODE,
+  BILLING_TOPUP_PURPOSE,
   MAX_TOPUP_USD,
   MIN_TOPUP_USD,
   usdToCents,
   usdToMicroUsd,
 } from '@/lib/billing';
-import { getStripe } from '@/lib/stripe';
+import { getAppOrigin, getStripe } from '@/lib/stripe';
 
 // Node runtime: the Stripe SDK uses Node crypto, and this mirrors the rest of the
 // API surface (triage/budget) which also pin nodejs.
@@ -27,7 +30,7 @@ const checkoutRequestSchema = z.object({
  */
 export async function POST(req: Request) {
   try {
-    const session = await verifySession();
+    const session = await verifyFreshSession();
     if (!session) {
       return Response.json({ error: 'unauthorized' }, { status: 401 });
     }
@@ -37,9 +40,15 @@ export async function POST(req: Request) {
     const { amountUsd } = checkoutRequestSchema.parse(body);
 
     const creditedMicroUsd = String(usdToMicroUsd(amountUsd));
-    const metadata = { userId, creditedMicroUsd };
+    const metadata = {
+      app: BILLING_APP_ID,
+      purpose: BILLING_TOPUP_PURPOSE,
+      userId,
+      creditedMicroUsd,
+      currency: BILLING_CURRENCY,
+    };
 
-    const origin = req.headers.get('origin') ?? new URL(req.url).origin;
+    const origin = getAppOrigin(req.url);
 
     const checkout = await getStripe().checkout.sessions.create({
       mode: 'payment',
@@ -52,14 +61,25 @@ export async function POST(req: Request) {
           quantity: 1,
           price_data: {
             currency: BILLING_CURRENCY,
+            tax_behavior: 'exclusive',
             unit_amount: usdToCents(amountUsd),
             product_data: {
               name: 'IR Arena wallet credit',
               description: `$${amountUsd} of model-usage credit`,
+              tax_code: BILLING_TAX_CODE,
             },
           },
         },
       ],
+      automatic_tax: { enabled: true },
+      billing_address_collection: 'auto',
+      invoice_creation: {
+        enabled: true,
+        invoice_data: {
+          description: 'IR Arena wallet top-up',
+          metadata,
+        },
+      },
       success_url: `${origin}/run?topup=success`,
       cancel_url: `${origin}/run?topup=cancelled`,
     });
