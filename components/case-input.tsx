@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { CasePicker } from '@/components/case-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { PRESET_CASES, type CaseField, type CaseFields } from '@/lib/cases';
 import { cn } from '@/lib/utils';
@@ -73,38 +67,27 @@ export function CaseInput({
 }: CaseInputProps) {
   return (
     <section className="flex flex-col">
-      {/* Header: section label + preset picker */}
+      {/* Header: section label + preset count */}
       <div className="flex items-center justify-between gap-3 border-b border-[#EEEDEC] px-4 py-3">
         <h2 className="text-xs font-medium tracking-wide text-[#67625B] uppercase">
           Case
         </h2>
-        <Select
-          value={selectedPresetId}
-          onValueChange={(value) => {
-            if (value !== null) {
-              onPresetChange(value);
-            }
-          }}
-          disabled={disabled}
-        >
-          <SelectTrigger
-            id="preset-select"
-            aria-label="Preset case"
-            className="h-8 w-auto min-w-[200px] rounded-[10px] border-[#EEEDEC] bg-white text-xs shadow-none"
-          >
-            <SelectValue placeholder="Select a preset case" />
-          </SelectTrigger>
-          <SelectContent className="rounded-[14px] border-[#EEEDEC]">
-            {PRESET_CASES.map((preset, index) => (
-              <SelectItem key={preset.id} value={preset.id}>
-                {index + 1}. {preset.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <span className="font-mono text-[11px] text-[#67625B]">
+          {PRESET_CASES.length} presets
+        </span>
       </div>
 
-      <div className="flex flex-col gap-4 px-4 py-4">
+      {/* Visual, filterable case gallery */}
+      <CasePicker
+        selectedPresetId={selectedPresetId}
+        onPresetChange={onPresetChange}
+        disabled={disabled}
+      />
+
+      <div className="flex flex-col gap-4 border-t border-[#EEEDEC] px-4 py-4">
+        <span className="text-[10px] font-medium tracking-wider text-[#67625B] uppercase">
+          Edit case
+        </span>
         {FIELD_SPECS.map((spec) => (
           <div key={spec.key} className="flex flex-col gap-1.5">
             <label
