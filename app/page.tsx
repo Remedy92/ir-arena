@@ -142,12 +142,12 @@ export default function SetupPage() {
   const selectedCategory = getCaseDisplay(selectedPresetId)?.category;
 
   return (
-    <div className="flex min-h-full flex-col md:h-dvh md:min-h-0 md:overflow-hidden">
+    <div className="flex min-h-full flex-col">
       <TopBar />
       <DisclaimerStrip />
 
-      <main className="flex flex-1 flex-col md:min-h-0 md:overflow-hidden">
-        <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 pt-6 pb-4 md:min-h-0 md:overflow-hidden">
+      <main className="flex flex-1 flex-col">
+        <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 pt-6 pb-4">
           {/* Compact editorial header */}
           <header className="flex flex-col gap-1">
             <h1 className="font-['Newsreader',Georgia,serif] text-2xl font-light tracking-tight text-[#2E2B29] sm:text-3xl">
@@ -186,14 +186,14 @@ export default function SetupPage() {
               animation to complete. An earlier AnimatePresence mode="wait" here
               deadlocked under the React Compiler — the exiting section froze
               mid-transition and the next step never mounted. */}
-          <div className="flex flex-1 flex-col md:min-h-0 md:overflow-hidden">
+          <div className="flex flex-1 flex-col">
             {step === 'case' ? (
               <motion.section
                 key="case"
                 initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                className="flex flex-1 flex-col md:min-h-0"
+                className="flex flex-1 flex-col"
               >
                 <CaseInput
                   fields={caseFields}
@@ -208,9 +208,9 @@ export default function SetupPage() {
                 initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:min-h-0"
+                className="mx-auto flex w-full max-w-2xl flex-1 flex-col rounded-[14px] border border-[#EEEDEC] bg-white"
               >
-                <div className="min-h-0 flex-1 overflow-y-auto">
+                <div>
                   <ModelPicker
                     selectedModels={selectedModels}
                     onSelectionChange={setSelectedModels}
@@ -225,8 +225,9 @@ export default function SetupPage() {
           </div>
         </div>
 
-        {/* Step action bar — pinned beneath the config */}
-        <div className="shrink-0 border-t border-[#EEEDEC] bg-[#FCFAF8]">
+        {/* Step action bar — sticky footer so the primary action stays reachable
+            while the page scrolls as one surface */}
+        <div className="sticky bottom-0 z-30 border-t border-[#EEEDEC] bg-[#FCFAF8]">
           <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
             {step === 'case' ? (
               <>

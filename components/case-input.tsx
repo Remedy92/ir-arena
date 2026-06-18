@@ -78,9 +78,11 @@ export function CaseInput({
   const dot = categoryDot(category);
 
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-[minmax(0,7fr)_minmax(0,9fr)]">
-      {/* LEFT — selection */}
-      <div className="flex min-h-0 flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:overflow-y-auto">
+    <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-[minmax(0,7fr)_minmax(0,9fr)]">
+      {/* LEFT — selection. Sticky on desktop so the case list stays in view while
+          the page scrolls the right-hand edit fields. max-h + overflow only engage
+          when the list itself is taller than the viewport. */}
+      <div className="flex flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:sticky md:top-[92px] md:max-h-[calc(100dvh-92px-1rem)] md:overflow-y-auto">
         <CasePicker
           selectedPresetId={selectedPresetId}
           onPresetChange={onPresetChange}
@@ -89,7 +91,7 @@ export function CaseInput({
       </div>
 
       {/* RIGHT — selected case info + editable fields */}
-      <div className="flex min-h-0 flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white">
+      <div className="flex flex-col rounded-[14px] border border-[#EEEDEC] bg-white">
         {/* Pinned info header */}
         <div className="shrink-0 border-b border-[#EEEDEC] px-4 py-3">
           <div className="flex items-center justify-between gap-2">
@@ -140,8 +142,8 @@ export function CaseInput({
           </h2>
         </div>
 
-        {/* Scrollable edit body */}
-        <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-4 md:overflow-y-auto">
+        {/* Edit body — flows in the page scroll */}
+        <div className="flex flex-col gap-4 px-4 py-4">
           <span className="text-[10px] font-medium tracking-wider text-[#67625B] uppercase">
             Edit case
           </span>
