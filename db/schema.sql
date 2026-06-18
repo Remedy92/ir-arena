@@ -57,3 +57,27 @@ CREATE INDEX IF NOT EXISTS usage_events_gen_idx ON usage_events(generation_id);
 CREATE INDEX IF NOT EXISTS usage_events_stale_reserved_idx
   ON usage_events(created_at)
   WHERE status = 'reserved';
+
+-- A user's "winner" pick for one blinded comparison run. This is the first
+-- STUDY-OUTCOME table (everything above is billing-only): it records which model
+-- the user judged best for a given synthetic case, plus a snapshot of each arm's
+-- structured triage so the pick stays interpretable. Upsert keyed by
+-- (user_id, run_uuid) so re-saving the same run replaces the previous pick.
+CREATE TABLE IF NOT EXISTS run_votes (
+  id              BIGSERIAL PRIMARY KEY,
+  user_id         TEXT NOT NULL,                      -- neon_auth user id of the voter
+  run_uuid        TEXT NOT NULL,                      -- client-generated id per run (upsert key)
+  case_id         TEXT,                               -- preset id, or 'custom'
+  case_text       TEXT,                               -- the synthetic case sent to the models
+  reasoning       TEXT,                               -- shared reasoning effort for the run
+  blinded_at_vote BOOLEAN NOT NULL DEFAULT TRUE,      -- were identities hidden when the pick was made
+  winner_slug     TEXT NOT NULL,                      -- gateway slug of the chosen model
+  winner_label    TEXT,                               -- blind label (A, B, ...) at vote time
+  models          JSONB NOT NULL,                     -- per-arm snapshot (slug/label/decision/urgency/vessel/agent/confidence/latency/status)
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, run_uuid)
+);
+
+CREATE INDEX IF NOT EXISTS run_votes_user_idx ON run_votes(user_id);
+CREATE INDEX IF NOT EXISTS run_votes_winner_idx ON run_votes(winner_slug);

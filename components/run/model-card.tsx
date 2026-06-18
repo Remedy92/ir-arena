@@ -30,6 +30,12 @@ interface LiveModelCardProps {
   startDelayMs?: number;
   slotIndex: number;
   onStateChange: (state: ModelCardSlotState) => void;
+  /** Voting is open (the whole run has settled and this card can be picked). */
+  votingEnabled?: boolean;
+  /** This card is the user's current winner pick. */
+  isWinner?: boolean;
+  /** Toggle this card as the winner. */
+  onPickWinner?: (label: BlindLabel) => void;
 }
 
 const DECISIONS = new Set<TriageResult['decision']>([
@@ -74,6 +80,9 @@ export function LiveModelCard({
   startDelayMs = 0,
   slotIndex,
   onStateChange,
+  votingEnabled = false,
+  isWinner = false,
+  onPickWinner,
 }: LiveModelCardProps) {
   const {
     displayObject,
@@ -104,6 +113,7 @@ export function LiveModelCard({
       : rawError
         ? 'Error'
         : 'Idle';
+  const canPick = votingEnabled && finished && !rawError;
 
   return (
     <motion.div
@@ -119,10 +129,14 @@ export function LiveModelCard({
       className={cn(
         'flex flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white',
         rawError && 'border-[#F5C6C6] bg-[#FEF8F8]',
+        isWinner && 'border-[#2E2B29] ring-1 ring-[#2E2B29]/15',
       )}
     >
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-[#EEEDEC] px-4 py-3">
+        {isWinner ? (
+          <TrophyIcon className="size-3.5 shrink-0 text-[#2E2B29]" />
+        ) : null}
         {revealModels ? (
           <motion.span
             layout
@@ -273,7 +287,7 @@ export function LiveModelCard({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between border-t border-[#EEEDEC] bg-[#FCFAF8] px-4 py-2.5">
+      <div className="flex items-center justify-between gap-2 border-t border-[#EEEDEC] bg-[#FCFAF8] px-4 py-2.5">
         <span className="font-mono text-[11px] tabular-nums text-[#67625B]">
           {isLoading
             ? '…'
@@ -281,20 +295,62 @@ export function LiveModelCard({
               ? `${latencyMs} ms`
               : '—'}
         </span>
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.span
-            key={status}
-            initial={{ opacity: 0, y: 2 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -2 }}
-            transition={{ duration: 0.15 }}
-            className="text-[11px] text-[#67625B]"
+        {canPick ? (
+          <button
+            type="button"
+            onClick={() => onPickWinner?.(blindLabel)}
+            aria-pressed={isWinner}
+            aria-label={
+              isWinner
+                ? `${headerLabel} is your pick — tap to clear`
+                : `Pick ${headerLabel} as the best triage`
+            }
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67625B]',
+              isWinner
+                ? 'bg-[#2E2B29] text-white'
+                : 'border border-[#D8D5D0] text-[#67625B] hover:border-[#2E2B29] hover:text-[#2E2B29]',
+            )}
           >
-            {status}
-          </motion.span>
-        </AnimatePresence>
+            <TrophyIcon className="size-3" />
+            {isWinner ? 'Winner' : 'Pick winner'}
+          </button>
+        ) : (
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span
+              key={status}
+              initial={{ opacity: 0, y: 2 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -2 }}
+              transition={{ duration: 0.15 }}
+              className="text-[11px] text-[#67625B]"
+            >
+              {status}
+            </motion.span>
+          </AnimatePresence>
+        )}
       </div>
     </motion.div>
+  );
+}
+
+function TrophyIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4.5 2.5h7v3a3.5 3.5 0 0 1-7 0v-3Z" />
+      <path d="M4.5 3.5h-2v1a2 2 0 0 0 2 2M11.5 3.5h2v1a2 2 0 0 1-2 2" />
+      <path d="M8 9v2.5M5.5 13.5h5M6.5 13.5l.4-2M9.5 13.5l-.4-2" />
+    </svg>
   );
 }
 

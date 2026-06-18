@@ -10,6 +10,8 @@ import {
 } from '@/lib/consensus';
 import type { TriageResult } from '@/lib/schema';
 import type { ModelCardSlotState } from '@/lib/use-triage-stream';
+import type { VoteSaveState } from '@/lib/votes';
+import type { BlindLabel } from '@/lib/models';
 import { cn } from '@/lib/utils';
 
 interface RunSidebarProps {
@@ -21,6 +23,10 @@ interface RunSidebarProps {
   isRunning: boolean;
   finishedCount: number;
   total: number;
+  winnerLabel: BlindLabel | null;
+  saveState: VoteSaveState;
+  saveError?: string;
+  onSaveVote: () => void;
 }
 
 const AGREEMENT_LABELS: Record<ConsensusField, string> = {
@@ -71,7 +77,20 @@ export function RunSidebar({
   isRunning,
   finishedCount,
   total,
+  winnerLabel,
+  saveState,
+  saveError,
+  onSaveVote,
 }: RunSidebarProps) {
+  const votingOpen = !isRunning && finishedCount > 0;
+  const winnerSlot = winnerLabel
+    ? slots.find((slot) => slot.blindLabel === winnerLabel)
+    : undefined;
+  const winnerName = winnerSlot
+    ? revealModels
+      ? winnerSlot.model.label
+      : `Model ${winnerSlot.blindLabel}`
+    : undefined;
   const showAgreement = shouldShowConsensus(finishedCount);
   const agreementRows = showAgreement
     ? computeConsensus(
@@ -189,6 +208,57 @@ export function RunSidebar({
         </div>
       ) : null}
 
+      {/* Your verdict — winner pick + save */}
+      {votingOpen ? (
+        <div className="border-t border-[#EEEDEC] px-4 py-3">
+          <h3 className="mb-2 text-[10px] font-medium tracking-wider text-[#67625B] uppercase">
+            Your verdict
+          </h3>
+          {winnerLabel ? (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-[#67625B]">Best triage</span>
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#2E2B29]">
+                  <TrophyIcon className="size-3.5 text-[#2E2B29]" />
+                  {winnerName}
+                </span>
+              </div>
+              {saveState === 'saved' ? (
+                <span className="inline-flex items-center gap-1.5 rounded-[10px] bg-[#EDF3EC] px-2.5 py-1.5 text-[11px] font-medium text-[#346538]">
+                  <CheckIcon className="size-3" />
+                  Saved{winnerName ? ` · ${winnerName}` : ''}
+                </span>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={onSaveVote}
+                  disabled={saveState === 'saving'}
+                  className="h-9 w-full rounded-[12px] bg-[#2E2B29] text-sm font-medium text-white hover:bg-[#2E2B29]/90"
+                >
+                  {saveState === 'saving'
+                    ? 'Saving…'
+                    : revealModels
+                      ? 'Save pick'
+                      : 'Save pick & reveal'}
+                </Button>
+              )}
+              {saveState === 'error' ? (
+                <span className="text-[11px] text-[#9F2F2D]">
+                  Couldn’t save{saveError ? `: ${saveError}` : ''}. Try again.
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-xs leading-snug text-[#67625B]">
+              Which model handled it best? Tap{' '}
+              <span className="font-medium text-[#2E2B29]">Pick winner</span> on a
+              card
+              {revealModels ? '.' : ' — identities stay hidden until you save.'}
+            </p>
+          )}
+        </div>
+      ) : null}
+
       {/* Controls — pinned to the bottom on desktop */}
       <div className="mt-auto flex flex-col gap-3 border-t border-[#EEEDEC] px-4 py-4">
         <div className="flex items-center justify-between gap-2">
@@ -251,6 +321,25 @@ function CheckIcon({ className }: { className?: string }) {
       aria-hidden
     >
       <path d="M3.5 8.5l3 3 6-7" />
+    </svg>
+  );
+}
+
+function TrophyIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4.5 2.5h7v3a3.5 3.5 0 0 1-7 0v-3Z" />
+      <path d="M4.5 3.5h-2v1a2 2 0 0 0 2 2M11.5 3.5h2v1a2 2 0 0 1-2 2" />
+      <path d="M8 9v2.5M5.5 13.5h5M6.5 13.5l.4-2M9.5 13.5l-.4-2" />
     </svg>
   );
 }

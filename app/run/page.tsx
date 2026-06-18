@@ -22,6 +22,12 @@ import { type ReasoningEffort } from '@/lib/reasoning';
 import { defaultPendingRunReasoning, getPendingRun } from '@/lib/run-store';
 import { shuffleModels } from '@/lib/shuffle';
 import type { ModelCardSlotState } from '@/lib/use-triage-stream';
+import {
+  newRunUuid,
+  saveVote,
+  type VoteModelSnapshot,
+  type VoteSaveState,
+} from '@/lib/votes';
 
 // Stagger request starts so a burst of parallel gateway calls doesn't trip the
 // known empty-stream-under-load failure; Gemini Flash gets an extra cushion.
@@ -59,6 +65,11 @@ export default function RunPage() {
   const [slotStates, setSlotStates] = useState<
     Record<BlindLabel, ModelCardSlotState>
   >({});
+  const [runUuid, setRunUuid] = useState('');
+  const [caseId, setCaseId] = useState('custom');
+  const [winnerLabel, setWinnerLabel] = useState<BlindLabel | null>(null);
+  const [saveState, setSaveState] = useState<VoteSaveState>('idle');
+  const [saveError, setSaveError] = useState<string | undefined>();
 
   // Load the configured comparison once, then auto-start the run.
   useEffect(() => {
@@ -76,6 +87,8 @@ export default function RunPage() {
           setReasoning(pending.reasoning);
           setModels(resolved);
           setShuffledSlots(shuffleModels(resolved));
+          setCaseId(pending.presetId || 'custom');
+          setRunUuid(newRunUuid());
           setRunId(1);
         }
       }
@@ -139,8 +152,79 @@ export default function RunPage() {
     setRevealModels(false);
     setSlotStates({});
     setShuffledSlots(shuffleModels(models));
+    setWinnerLabel(null);
+    setSaveState('idle');
+    setSaveError(undefined);
+    setRunUuid(newRunUuid());
     setRunId((current) => current + 1);
   }, [models]);
+
+  const votingEnabled = runId > 0 && !isRunning && finishedCount > 0;
+
+  const handlePickWinner = useCallback((label: BlindLabel) => {
+    setWinnerLabel((previous) => (previous === label ? null : label));
+    setSaveState('idle');
+    setSaveError(undefined);
+  }, []);
+
+  const handleSaveVote = useCallback(async () => {
+    if (!winnerLabel) {
+      return;
+    }
+    const winnerSlot = slotStateList.find(
+      (slot) => slot.blindLabel === winnerLabel,
+    );
+    if (!winnerSlot || !winnerSlot.finished) {
+      return;
+    }
+
+    const blinded = !revealModels;
+    const modelSnapshots: VoteModelSnapshot[] = slotStateList.map((slot) => ({
+      slug: slot.model.slug,
+      label: slot.model.label,
+      blindLabel: slot.blindLabel,
+      decision: slot.object?.decision ?? null,
+      urgency: slot.object?.urgency ?? null,
+      targetVessel: slot.object?.targetVessel ?? null,
+      embolicAgent: slot.object?.embolicAgent ?? null,
+      confidence:
+        typeof slot.object?.confidence === 'number'
+          ? slot.object.confidence
+          : null,
+      latencyMs: slot.latencyMs ?? null,
+      status: slot.finished ? 'finished' : slot.error ? 'error' : 'pending',
+    }));
+
+    setSaveState('saving');
+    setSaveError(undefined);
+    const result = await saveVote({
+      runUuid,
+      caseId,
+      caseText,
+      reasoning,
+      blindedAtVote: blinded,
+      winnerSlug: winnerSlot.model.slug,
+      winnerLabel,
+      models: modelSnapshots,
+    });
+    if (result.ok) {
+      setSaveState('saved');
+      if (blinded) {
+        setRevealModels(true);
+      }
+    } else {
+      setSaveState('error');
+      setSaveError(result.error);
+    }
+  }, [
+    winnerLabel,
+    slotStateList,
+    revealModels,
+    runUuid,
+    caseId,
+    caseText,
+    reasoning,
+  ]);
 
   const handleEdit = useCallback(() => {
     router.push('/');
@@ -209,6 +293,10 @@ export default function RunPage() {
           isRunning={isRunning}
           finishedCount={finishedCount}
           total={shuffledSlots.length}
+          winnerLabel={winnerLabel}
+          saveState={saveState}
+          saveError={saveError}
+          onSaveVote={handleSaveVote}
         />
 
         <div className="min-w-0 flex-1 md:overflow-y-auto">
@@ -224,6 +312,9 @@ export default function RunPage() {
               getStartDelayMs={getModelStartDelayMs}
               getStableHandler={getStableHandler}
               substitutionFootnote={substitutionFootnote}
+              votingEnabled={votingEnabled}
+              winnerLabel={winnerLabel}
+              onPickWinner={handlePickWinner}
             />
           ) : null}
         </div>

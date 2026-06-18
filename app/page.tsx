@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AnimatePresence, motion } from 'motion/react';
 
 import { CaseInput } from '@/components/case-input';
 import { DisclaimerStrip } from '@/components/disclaimer-strip';
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth/client';
 import {
   assembleCaseText,
+  getCaseDisplay,
   PRESET_CASES,
   presetToCaseFields,
   type CaseField,
@@ -32,12 +34,16 @@ import {
   TRIAGE_REQUEST_MIN_CASE_LENGTH,
 } from '@/lib/schema';
 import { useSelectedModels } from '@/lib/use-selected-models';
+import { cn } from '@/lib/utils';
 
 const DEFAULT_PRESET = PRESET_CASES[1];
+
+type SetupStep = 'case' | 'models';
 
 export default function SetupPage() {
   const router = useRouter();
 
+  const [step, setStep] = useState<SetupStep>('case');
   const [caseFields, setCaseFields] = useState<CaseFields>(() =>
     presetToCaseFields(DEFAULT_PRESET),
   );
@@ -73,14 +79,17 @@ export default function SetupPage() {
   const hasEnoughModels = selectedModels.length >= 2;
   const isCaseTooShort = caseLength < TRIAGE_REQUEST_MIN_CASE_LENGTH;
   const isCaseTooLong = caseLength > TRIAGE_REQUEST_MAX_CASE_LENGTH;
-  const canRun = hasEnoughModels && !isCaseTooShort && !isCaseTooLong;
-  const setupBlockReason = isCaseTooLong
-    ? `Case is ${caseLength.toLocaleString()} characters after trimming. Keep it at ${TRIAGE_REQUEST_MAX_CASE_LENGTH.toLocaleString()} or fewer to run.`
-    : !hasEnoughModels
-      ? 'Select at least 2 models to run.'
-      : isCaseTooShort
-        ? `Enter at least ${TRIAGE_REQUEST_MIN_CASE_LENGTH} characters of case detail to run.`
-        : undefined;
+  const isCaseValid = !isCaseTooShort && !isCaseTooLong;
+  const canRun = hasEnoughModels && isCaseValid;
+
+  const caseBlockReason = isCaseTooLong
+    ? `Case is ${caseLength.toLocaleString()} characters after trimming. Keep it at ${TRIAGE_REQUEST_MAX_CASE_LENGTH.toLocaleString()} or fewer.`
+    : isCaseTooShort
+      ? `Add at least ${TRIAGE_REQUEST_MIN_CASE_LENGTH} characters of case detail to continue.`
+      : undefined;
+  const modelsBlockReason = !hasEnoughModels
+    ? 'Select at least 2 models to run.'
+    : undefined;
 
   const handleFieldChange = useCallback((field: CaseField, value: string) => {
     setCaseFields((previous) => ({ ...previous, [field]: value }));
@@ -121,13 +130,24 @@ export default function SetupPage() {
   const substitutionFootnote =
     selectedModels.find(hasSubstitutionFootnote)?.footnote;
 
+  const goToModels = useCallback(() => {
+    if (isCaseValid) {
+      setStep('models');
+    }
+  }, [isCaseValid]);
+
+  const selectedTitle =
+    PRESET_CASES.find((preset) => preset.id === selectedPresetId)?.title ??
+    'Custom case';
+  const selectedCategory = getCaseDisplay(selectedPresetId)?.category;
+
   return (
     <div className="flex min-h-full flex-col md:h-dvh md:min-h-0 md:overflow-hidden">
       <TopBar />
       <DisclaimerStrip />
 
       <main className="flex flex-1 flex-col md:min-h-0 md:overflow-hidden">
-        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5 px-4 pt-6 pb-4 md:min-h-0 md:overflow-hidden">
+        <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 pt-6 pb-4 md:min-h-0 md:overflow-hidden">
           {/* Compact editorial header */}
           <header className="flex flex-col gap-1">
             <h1 className="font-['Newsreader',Georgia,serif] text-2xl font-light tracking-tight text-[#2E2B29] sm:text-3xl">
@@ -142,69 +162,233 @@ export default function SetupPage() {
               ?
             </h1>
             <p className="max-w-2xl text-sm leading-relaxed text-[#67625B]">
-              Pick the models and prepare a synthetic case, then run a blinded
+              Prepare a synthetic case, choose the models, then run a blinded
               side-by-side triage.
             </p>
           </header>
 
-          {/* Two-column config — model picker + case prep */}
-          <div className="grid flex-1 gap-5 md:min-h-0 md:grid-cols-[19rem_1fr] md:overflow-hidden lg:grid-cols-[21rem_1fr]">
-            <aside className="flex flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:min-h-0">
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <ModelPicker
-                  selectedModels={selectedModels}
-                  onSelectionChange={setSelectedModels}
-                />
-              </div>
-              <ReasoningControl
-                value={reasoning}
-                onValueChange={setReasoning}
-              />
-            </aside>
+          {/* Progress stepper */}
+          <StepHeader
+            step={step}
+            caseDone={isCaseValid}
+            modelsDone={hasEnoughModels}
+            canOpenModels={isCaseValid}
+            onStep={(next) => {
+              if (next === 'case' || isCaseValid) {
+                setStep(next);
+              }
+            }}
+          />
 
-            <section className="flex flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:min-h-0 md:overflow-y-auto">
-              <CaseInput
-                fields={caseFields}
-                onFieldChange={handleFieldChange}
-                selectedPresetId={selectedPresetId}
-                onPresetChange={handlePresetChange}
-              />
-            </section>
+          {/* Active step */}
+          <div className="flex flex-1 flex-col md:min-h-0 md:overflow-hidden">
+            <AnimatePresence mode="wait" initial={false}>
+              {step === 'case' ? (
+                <motion.section
+                  key="case"
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -12 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  className="flex flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:min-h-0 md:overflow-y-auto"
+                >
+                  <CaseInput
+                    fields={caseFields}
+                    onFieldChange={handleFieldChange}
+                    selectedPresetId={selectedPresetId}
+                    onPresetChange={handlePresetChange}
+                  />
+                </motion.section>
+              ) : (
+                <motion.section
+                  key="models"
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -12 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  className="flex flex-col overflow-hidden rounded-[14px] border border-[#EEEDEC] bg-white md:min-h-0"
+                >
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    <ModelPicker
+                      selectedModels={selectedModels}
+                      onSelectionChange={setSelectedModels}
+                    />
+                  </div>
+                  <ReasoningControl
+                    value={reasoning}
+                    onValueChange={setReasoning}
+                  />
+                </motion.section>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
-        {/* Run bar — pinned beneath the config, mirrors the comparison input */}
+        {/* Step action bar — pinned beneath the config */}
         <div className="shrink-0 border-t border-[#EEEDEC] bg-[#FCFAF8]">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col gap-0.5">
-              <span className="font-mono text-[11px] tabular-nums text-[#67625B]">
-                {selectedModels.length}{' '}
-                {selectedModels.length === 1 ? 'model' : 'models'} selected ·{' '}
-                reasoning {getReasoningEffortLabel(reasoning)}
-              </span>
-              {setupBlockReason ? (
-                <span className="text-[11px] text-[#67625B]">
-                  {setupBlockReason}
-                </span>
-              ) : null}
-              {substitutionFootnote ? (
-                <span className="text-[11px] text-[#67625B]">
-                  {substitutionFootnote}
-                </span>
-              ) : null}
-            </div>
-
-            <Button
-              type="button"
-              onClick={handleRun}
-              disabled={!canRun}
-              className="h-10 rounded-[12px] bg-[#2E2B29] px-6 text-sm font-medium text-white hover:bg-[#2E2B29]/90"
-            >
-              Run comparison
-            </Button>
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+            {step === 'case' ? (
+              <>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-xs text-[#2E2B29]">
+                    <span className="font-medium">{selectedTitle}</span>
+                    {selectedCategory ? (
+                      <span className="text-[#67625B]"> · {selectedCategory}</span>
+                    ) : null}
+                  </span>
+                  <span className="font-mono text-[11px] tabular-nums text-[#67625B]">
+                    {caseBlockReason ??
+                      `Case ready · ${caseLength.toLocaleString()} characters`}
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  onClick={goToModels}
+                  disabled={!isCaseValid}
+                  className="h-10 rounded-[12px] bg-[#2E2B29] px-6 text-sm font-medium text-white hover:bg-[#2E2B29]/90"
+                >
+                  Next: choose models →
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-mono text-[11px] tabular-nums text-[#67625B]">
+                    {selectedModels.length}{' '}
+                    {selectedModels.length === 1 ? 'model' : 'models'} selected ·{' '}
+                    reasoning {getReasoningEffortLabel(reasoning)}
+                  </span>
+                  {modelsBlockReason ? (
+                    <span className="text-[11px] text-[#67625B]">
+                      {modelsBlockReason}
+                    </span>
+                  ) : null}
+                  {substitutionFootnote ? (
+                    <span className="text-[11px] text-[#67625B]">
+                      {substitutionFootnote}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setStep('case')}
+                    className="h-10 rounded-[12px] border-[#EEEDEC] bg-white px-4 text-sm font-medium text-[#2E2B29] hover:bg-[#F4F2EF]"
+                  >
+                    ← Back
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleRun}
+                    disabled={!canRun}
+                    className="h-10 rounded-[12px] bg-[#2E2B29] px-6 text-sm font-medium text-white hover:bg-[#2E2B29]/90"
+                  >
+                    Run comparison
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </main>
     </div>
+  );
+}
+
+interface StepHeaderProps {
+  step: SetupStep;
+  caseDone: boolean;
+  modelsDone: boolean;
+  canOpenModels: boolean;
+  onStep: (step: SetupStep) => void;
+}
+
+function StepHeader({
+  step,
+  caseDone,
+  modelsDone,
+  canOpenModels,
+  onStep,
+}: StepHeaderProps) {
+  const steps: {
+    id: SetupStep;
+    n: number;
+    label: string;
+    done: boolean;
+    enabled: boolean;
+  }[] = [
+    { id: 'case', n: 1, label: 'Case', done: caseDone, enabled: true },
+    {
+      id: 'models',
+      n: 2,
+      label: 'Models',
+      done: modelsDone,
+      enabled: canOpenModels,
+    },
+  ];
+
+  return (
+    <nav aria-label="Setup steps" className="flex items-center gap-3">
+      {steps.map((item, index) => {
+        const active = step === item.id;
+        return (
+          <div key={item.id} className="flex flex-1 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onStep(item.id)}
+              disabled={!item.enabled}
+              aria-current={active ? 'step' : undefined}
+              className={cn(
+                'group flex items-center gap-2 rounded-full py-1 pr-2.5 pl-1 transition-colors',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67625B]',
+                item.enabled ? 'cursor-pointer' : 'cursor-not-allowed',
+              )}
+            >
+              <span
+                className={cn(
+                  'flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums transition-colors',
+                  active
+                    ? 'bg-[#2E2B29] text-white'
+                    : item.done
+                      ? 'bg-[#EDF3EC] text-[#346538]'
+                      : 'border border-[#D8D5D0] bg-white text-[#67625B]',
+                )}
+              >
+                {item.done && !active ? (
+                  <svg
+                    viewBox="0 0 16 16"
+                    className="size-3"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M3.5 8.5l3 3 6-7" />
+                  </svg>
+                ) : (
+                  item.n
+                )}
+              </span>
+              <span
+                className={cn(
+                  'text-sm transition-colors',
+                  active
+                    ? 'font-medium text-[#2E2B29]'
+                    : 'text-[#67625B] group-hover:text-[#2E2B29]',
+                )}
+              >
+                {item.label}
+              </span>
+            </button>
+            {index < steps.length - 1 ? (
+              <span aria-hidden className="h-px flex-1 bg-[#EEEDEC]" />
+            ) : null}
+          </div>
+        );
+      })}
+    </nav>
   );
 }

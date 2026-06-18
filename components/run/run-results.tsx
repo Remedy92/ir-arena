@@ -26,6 +26,9 @@ interface RunResultsProps {
   getStartDelayMs: (model: ModelConfig, index: number) => number;
   getStableHandler: (label: BlindLabel) => (state: ModelCardSlotState) => void;
   substitutionFootnote?: string;
+  votingEnabled: boolean;
+  winnerLabel: BlindLabel | null;
+  onPickWinner: (label: BlindLabel) => void;
 }
 
 /** Pick a column count that keeps cards comfortably wide for any N. */
@@ -49,6 +52,9 @@ export function RunResults({
   getStartDelayMs,
   getStableHandler,
   substitutionFootnote,
+  votingEnabled,
+  winnerLabel,
+  onPickWinner,
 }: RunResultsProps) {
   const total = shuffledSlots.length;
 
@@ -72,6 +78,9 @@ export function RunResults({
                 slotIndex={index}
                 startDelayMs={getStartDelayMs(slot.model, index)}
                 onStateChange={getStableHandler(slot.blindLabel)}
+                votingEnabled={votingEnabled}
+                isWinner={winnerLabel === slot.blindLabel}
+                onPickWinner={onPickWinner}
               />
             ))}
           </AnimatePresence>
