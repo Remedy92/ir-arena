@@ -243,6 +243,7 @@ export function LiveModelCard({
               <AnimatedField
                 label="Alternative plan"
                 value={displayObject?.alternativePlan}
+                multiline
               />
               <AnimatedField
                 label="Rationale"
@@ -438,18 +439,23 @@ function AnimatedConfidence({ confidence }: { confidence: number | undefined }) 
   });
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-[#EEEDEC]">
-        <motion.div
-          className="absolute inset-y-0 left-0 rounded-full bg-[#2E2B29]"
-          initial={{ width: 0 }}
-          animate={{ width: `${confidence ?? 0}%` }}
-          transition={{ type: 'spring', stiffness: 120, damping: 20 }}
-        />
-      </div>
-      <span className="shrink-0 font-mono text-xs tabular-nums text-[#67625B]">
-        {confidence !== undefined ? `${displayed}%` : '—'}
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] font-medium tracking-wide text-[#67625B] uppercase">
+        Model confidence
       </span>
+      <div className="flex items-center gap-2">
+        <div className="relative h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-[#EEEDEC]">
+          <motion.div
+            className="absolute inset-y-0 left-0 rounded-full bg-[#2E2B29]"
+            initial={{ width: 0 }}
+            animate={{ width: `${confidence ?? 0}%` }}
+            transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+          />
+        </div>
+        <span className="shrink-0 font-mono text-xs tabular-nums text-[#67625B]">
+          {confidence !== undefined ? `${displayed}%` : '—'}
+        </span>
+      </div>
     </div>
   );
 }
