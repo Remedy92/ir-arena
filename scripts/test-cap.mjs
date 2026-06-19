@@ -11,7 +11,8 @@ const sql = neon(process.env.DATABASE_URL);
 const USER = 'test-cap-user-DELETEME';
 const MICRO = 1_000_000;
 const MAX_IN = 4_000;
-const MAX_OUT = 2_000;
+// Mirror of STUDY_GENERATION_SETTINGS.maxOutputTokens (lib/study-settings.ts).
+const MAX_OUT = 4_000;
 
 const BILLING_MARKUP = (() => {
   const parsed = Number(process.env.BILLING_MARKUP);

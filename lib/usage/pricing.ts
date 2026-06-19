@@ -14,26 +14,28 @@ const MICRO_USD_PER_USD = 1_000_000;
 const MAX_INPUT_TOKENS = 4_000;
 const MAX_OUTPUT_TOKENS = STUDY_GENERATION_SETTINGS.maxOutputTokens;
 
-// Per-slug fallback ceilings (micro-USD), used ONLY if live gateway pricing can't
-// be fetched. Derived from observed gateway pricing at the bounds above;
-// regenerate with `node --env-file=.env.local scripts/dump-pricing.mjs`.
+// Per-slug fallback ceilings (raw micro-USD, pre-markup), used ONLY if live
+// gateway pricing can't be fetched. Sampled from gateway pricing at the bounds
+// above (MAX_OUTPUT_TOKENS tracks STUDY_GENERATION_SETTINGS.maxOutputTokens, now
+// 4000). After any cap change, regenerate so these stay >= the live ceiling:
+//   pnpm exec tsx --env-file=.env.local scripts/dump-pricing.mjs
 const STATIC_FALLBACK_MICRO_USD: Record<string, number> = {
-  'openai/gpt-5.5': 80_000,
-  'openai/gpt-5.4-mini': 12_000,
-  'openai/gpt-5.4-nano': 3_300,
-  'anthropic/claude-opus-4.8': 70_000,
-  'anthropic/claude-sonnet-4.6': 42_000,
-  'google/gemini-3.5-flash': 24_000,
-  'google/gemma-4-31b-it': 1_360,
-  'xai/grok-4.3': 10_000,
-  'zai/glm-5.2': 16_000,
-  'alibaba/qwen3.7-plus': 4_800,
-  'deepseek/deepseek-v4-flash': 1_121,
-  'deepseek/deepseek-v4-pro': 3_480,
-  'moonshotai/kimi-k2.6': 11_800,
-  'minimax/minimax-m3': 3_600,
-  'xiaomi/mimo-v2.5': 1_121,
-  'meta/llama-4-maverick': 2_900,
+  'openai/gpt-5.5': 140_000,
+  'openai/gpt-5.4-mini': 21_000,
+  'openai/gpt-5.4-nano': 5_800,
+  'anthropic/claude-opus-4.8': 120_001,
+  'anthropic/claude-sonnet-4.6': 72_001,
+  'google/gemini-3.5-flash': 42_000,
+  'google/gemma-4-31b-it': 2_160,
+  'xai/grok-4.3': 15_000,
+  'zai/glm-5.2': 24_000,
+  'alibaba/qwen3.7-plus': 8_000,
+  'deepseek/deepseek-v4-flash': 1_680,
+  'deepseek/deepseek-v4-pro': 5_220,
+  'moonshotai/kimi-k2.6': 19_800,
+  'minimax/minimax-m3': 6_000,
+  'xiaomi/mimo-v2.5': 1_680,
+  'meta/llama-4-maverick': 4_841,
 };
 
 // Generous default for any unknown slug (above any single frontier call).

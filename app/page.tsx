@@ -19,7 +19,7 @@ import {
   type CaseField,
   type CaseFields,
 } from '@/lib/cases';
-import { hasSubstitutionFootnote } from '@/lib/models';
+import { hasSubstitutionFootnote, isHighCostModel } from '@/lib/models';
 import {
   defaultPendingRunReasoning,
   getPendingRun,
@@ -129,6 +129,14 @@ export default function SetupPage() {
 
   const substitutionFootnote =
     selectedModels.find(hasSubstitutionFootnote)?.footnote;
+
+  const highCostSelected = selectedModels.filter(isHighCostModel);
+  const highCostNote =
+    highCostSelected.length > 0
+      ? `${highCostSelected.map((model) => model.label).join(', ')} ${
+          highCostSelected.length === 1 ? 'is a premium model' : 'are premium models'
+        } — draws down your wallet several times faster than the rest.`
+      : undefined;
 
   const goToModels = useCallback(() => {
     if (isCaseValid) {
@@ -263,6 +271,12 @@ export default function SetupPage() {
                   {modelsBlockReason ? (
                     <span className="text-[11px] text-[#67625B]">
                       {modelsBlockReason}
+                    </span>
+                  ) : null}
+                  {highCostNote ? (
+                    <span className="text-[11px] text-[#9A6B0F]">
+                      <span className="font-mono font-semibold">$$$</span>{' '}
+                      {highCostNote}
                     </span>
                   ) : null}
                   {substitutionFootnote ? (

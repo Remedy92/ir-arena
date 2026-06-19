@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-import { MODEL_CATALOG, type ModelConfig } from '@/lib/models';
+import {
+  isHighCostModel,
+  MODEL_CATALOG,
+  type ModelConfig,
+} from '@/lib/models';
 import { cn } from '@/lib/utils';
 
 interface ModelPickerProps {
@@ -148,6 +152,15 @@ export function ModelPicker({
                     <span className="min-w-0 flex-1 truncate text-sm text-[#2E2B29]">
                       {model.label}
                     </span>
+                    {isHighCostModel(model) ? (
+                      <span
+                        title="Premium model — burns wallet credit several times faster"
+                        aria-label="Higher cost model"
+                        className="shrink-0 rounded-full bg-[#FBF1D6] px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-tight text-[#9A6B0F]"
+                      >
+                        $$$
+                      </span>
+                    ) : null}
                     {unavailable ? (
                       <span className="shrink-0 rounded-full bg-[#F0EFED] px-1.5 py-0.5 text-[9px] font-medium tracking-wide text-[#67625B] uppercase">
                         Unavailable

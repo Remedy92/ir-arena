@@ -21,7 +21,11 @@ import {
 // Node.js runtime required for @ai-sdk/devtools local capture (fs + .devtools/),
 // and for next/server `after()` used to reconcile spend post-response.
 export const runtime = 'nodejs';
-export const maxDuration = 120;
+// Heavy reasoners (e.g. moonshotai/kimi-k2.6) can think for ~2 min before emitting
+// JSON; 180s keeps slow-but-valid streams from being killed mid-reasoning. Vercel
+// allows up to 300s on all plans. Tough cases can still exhaust the token cap well
+// inside this window — that is a model limit, not a timeout (see study-settings).
+export const maxDuration = 180;
 
 function getGatewayGenerationId(metadata: unknown): string | undefined {
   if (typeof metadata !== 'object' || metadata === null) {

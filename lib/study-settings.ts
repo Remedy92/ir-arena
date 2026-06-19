@@ -5,17 +5,30 @@ export const STUDY_GENERATION_SETTINGS = {
   // reasoning models (e.g. zai/glm-5.2, deepseek/deepseek-v4-*) routinely spent
   // the entire budget thinking and hit `finishReason: 'length'` with zero text
   // tokens — surfacing as a false "no response"/empty-stream outcome rather than
-  // a real measurement. Note `reasoning: 'none'` does NOT reliably suppress this
-  // via the Gateway. This value is the single source of truth for the worst-case
-  // output budget: `getCeilingMicroUsd` (lib/usage/pricing.ts) DERIVES its
-  // reservation ceiling from it, so raising the cap stays billing-consistent by
-  // construction and lets every model finish reasoning AND return the schema
-  // object. Observed worst case across GLM/DeepSeek at this setting is ~740
-  // output tokens, so 2000 is generous headroom.
+  // a real measurement. Note `reasoning: 'none'/'low'` does NOT reliably suppress
+  // this via the Gateway (verified for moonshotai/kimi-k2.6).
+  //
+  // This value is the single source of truth for the worst-case output budget:
+  // `getCeilingMicroUsd` (lib/usage/pricing.ts) DERIVES its reservation ceiling
+  // from it, so raising the cap stays billing-consistent by construction and lets
+  // models finish reasoning AND return the schema object. After a cap change,
+  // regenerate the STATIC_FALLBACK_MICRO_USD table (it is sampled at this bound):
+  //   pnpm exec tsx --env-file=.env.local scripts/dump-pricing.mjs
+  //
+  // 900 -> 2000 covered GLM/DeepSeek (worst case ~740 output tokens). 2000 -> 4000
+  // covers heavy reasoners like moonshotai/kimi-k2.6, which thinks ~8k characters
+  // before the JSON: at 2000 it overflowed mid-thought on starter cases (~1/4 ok),
+  // at 4000 it is reliable on the starter tier (4/4, ~170 output tokens, ~5s).
+  // CAVEAT: on the *tough* tier, kimi-k2.6 reasons past 8k tokens AND past this
+  // route's 120s function timeout, so it can still fail there regardless of cap —
+  // that is a genuine measured limitation of the model, surfaced as a per-card
+  // "no response", not a misconfiguration. Non-reasoning models stop at their
+  // natural length, so the higher cap does not change their cost or behavior.
+  //
   // We intentionally do NOT force native structured outputs: the study measures
   // each model's *natural* schema compliance, so constraining decoding to the
   // schema would corrupt the measured outcome.
-  maxOutputTokens: 2000,
+  maxOutputTokens: 4000,
   temperature: 0,
 } as const;
 

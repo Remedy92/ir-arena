@@ -9,7 +9,7 @@
 
 -- One budget row per authenticated user (neon_auth user id), created lazily on first request.
 --
--- `cap_micro_usd` doubles as the prepaid WALLET BALANCE: it starts at the $0.50
+-- `cap_micro_usd` doubles as the prepaid WALLET BALANCE: it starts at the $0.75
 -- free trial and is raised by Stripe top-ups (see the payments table + the
 -- checkout/webhook routes). A run's remaining balance is cap - spent - reserved.
 -- Balance is denominated in CUSTOMER micro-USD (what the user paid); runs burn it
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS user_budget (
   user_id            TEXT PRIMARY KEY,              -- neon_auth user id
   spent_micro_usd    BIGINT NOT NULL DEFAULT 0,     -- settled actual cost (marked-up customer micro-USD)
   reserved_micro_usd BIGINT NOT NULL DEFAULT 0,     -- outstanding pre-flight reservations
-  cap_micro_usd      BIGINT NOT NULL DEFAULT 500000, -- $0.50 free trial + Stripe top-ups; the wallet balance ceiling
+  cap_micro_usd      BIGINT NOT NULL DEFAULT 750000, -- $0.75 free trial + Stripe top-ups; the wallet balance ceiling
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

@@ -13,6 +13,15 @@ export interface ModelConfig {
   dotColor: string;
   substituted?: boolean;
   footnote?: string;
+  /**
+   * Premium "top tier" arm whose per-token price is high enough to draw down the
+   * wallet several times faster than the rest of the catalog. Flagged in the
+   * picker so users choose it deliberately. Threshold: output ≳ $15/M tokens
+   * (GPT-5.5 $30, Opus 4.8 $25, Sonnet 4.6 $15; the next model, Gemini Flash, is
+   * $9). Static product designation, kept in sync with gateway pricing by hand —
+   * see `scripts/dump-pricing.mjs` for current per-token rates.
+   */
+  highCost?: boolean;
 }
 
 /**
@@ -28,6 +37,7 @@ export const MODEL_CATALOG: ModelConfig[] = [
     slug: 'openai/gpt-5.5',
     provider: 'OpenAI',
     dotColor: '#10A37F',
+    highCost: true,
   },
   {
     id: 'gpt-5.4-mini',
@@ -49,6 +59,7 @@ export const MODEL_CATALOG: ModelConfig[] = [
     slug: 'anthropic/claude-opus-4.8',
     provider: 'Anthropic',
     dotColor: '#D97757',
+    highCost: true,
   },
   {
     id: 'claude-sonnet-4.6',
@@ -56,6 +67,7 @@ export const MODEL_CATALOG: ModelConfig[] = [
     slug: 'anthropic/claude-sonnet-4.6',
     provider: 'Anthropic',
     dotColor: '#D97757',
+    highCost: true,
   },
   {
     id: 'gemini-3.5-flash',
@@ -139,12 +151,19 @@ export const MODEL_CATALOG: ModelConfig[] = [
   },
 ];
 
-/** Default comparison: the four verified-active arms from the original study. */
+/**
+ * Default comparison: a cost-conscious, provider-diverse spread that a brand-new
+ * user can run inside the starter wallet. All four are verified to stream
+ * schema-valid triage on both the starter and tough tiers (see
+ * `scripts/probe-cheap.mjs`). The premium frontier arms (GPT-5.5, Claude Opus/
+ * Sonnet — flagged `highCost`) are intentionally NOT defaults: at the worst-case
+ * reservation they alone can exceed the wallet, so users opt into them.
+ */
 export const DEFAULT_MODEL_IDS: string[] = [
-  'gpt-5.5',
-  'claude-opus-4.8',
+  'gpt-5.4-mini',
   'gemini-3.5-flash',
   'gemma-4-31b',
+  'deepseek-v4-pro',
 ];
 
 export const MODEL_SLUGS = MODEL_CATALOG.map((model) => model.slug);
@@ -169,6 +188,10 @@ export function isKnownModelSlug(slug: string): boolean {
 
 export function hasSubstitutionFootnote(model: ModelConfig): boolean {
   return model.substituted === true && typeof model.footnote === 'string';
+}
+
+export function isHighCostModel(model: ModelConfig): boolean {
+  return model.highCost === true;
 }
 
 /**

@@ -1,5 +1,7 @@
 import { gateway } from 'ai';
 
+import { STUDY_GENERATION_SETTINGS } from '../lib/study-settings.ts';
+
 const slugs = [
   'openai/gpt-5.5', 'openai/gpt-5.4-mini', 'openai/gpt-5.4-nano',
   'anthropic/claude-opus-4.8', 'anthropic/claude-sonnet-4.6',
@@ -17,9 +19,11 @@ const slugs = [
 const { models } = await gateway.getAvailableModels();
 const byId = new Map(models.map((m) => [m.id, m]));
 
-// Keep in sync with lib/usage/pricing.ts.
+// MAX_INPUT_TOKENS mirrors lib/usage/pricing.ts; OUT is derived from the single
+// source of truth (STUDY_GENERATION_SETTINGS.maxOutputTokens) so this script and
+// the reservation ceiling can never drift after a cap change.
 const IN = 4000;
-const OUT = 2000;
+const OUT = STUDY_GENERATION_SETTINGS.maxOutputTokens;
 
 for (const slug of slugs) {
   const m = byId.get(slug);
