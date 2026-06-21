@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { DecisionBadge } from '@/components/decision-badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -224,10 +226,18 @@ export function RunSidebar({
                 </span>
               </div>
               {saveState === 'saved' ? (
-                <span className="inline-flex items-center gap-1.5 rounded-[10px] bg-[#EDF3EC] px-2.5 py-1.5 text-[11px] font-medium text-[#346538]">
-                  <CheckIcon className="size-3" />
-                  Saved{winnerName ? ` · ${winnerName}` : ''}
-                </span>
+                <div className="flex flex-col gap-1.5">
+                  <span className="inline-flex items-center gap-1.5 rounded-[10px] bg-[#EDF3EC] px-2.5 py-1.5 text-[11px] font-medium text-[#346538]">
+                    <CheckIcon className="size-3" />
+                    Saved{winnerName ? ` · ${winnerName}` : ''}
+                  </span>
+                  <Link
+                    href="/benchmark"
+                    className="self-start text-[11px] text-[#67625B] transition-colors hover:text-[#2E2B29]"
+                  >
+                    See benchmark →
+                  </Link>
+                </div>
               ) : (
                 <Button
                   type="button"

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'motion/react';
 
 import { CaseInput } from '@/components/case-input';
@@ -171,7 +172,13 @@ export default function SetupPage() {
             </h1>
             <p className="max-w-2xl text-sm leading-relaxed text-[#67625B]">
               Prepare a synthetic case, choose the models, then run a blinded
-              side-by-side triage.
+              side-by-side triage.{' '}
+              <Link
+                href="/benchmark"
+                className="font-medium text-[#2E2B29] underline decoration-[#D8D5D0] underline-offset-2 transition-colors hover:decoration-[#2E2B29]"
+              >
+                See the public benchmark →
+              </Link>
             </p>
           </header>
 

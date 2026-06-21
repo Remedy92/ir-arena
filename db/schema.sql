@@ -81,3 +81,34 @@ CREATE TABLE IF NOT EXISTS run_votes (
 
 CREATE INDEX IF NOT EXISTS run_votes_user_idx ON run_votes(user_id);
 CREATE INDEX IF NOT EXISTS run_votes_winner_idx ON run_votes(winner_slug);
+CREATE INDEX IF NOT EXISTS run_votes_case_id_idx ON run_votes(case_id);
+
+-- Full structured triage output per arm, normalized (one row per arm per run).
+-- Source of truth for future drilldowns (rationale / redFlags / alternativePlan).
+-- The run_votes.models JSONB snapshot stays as a denormalized convenience for
+-- the v1 leaderboard; this table is the canonical wide record going forward.
+-- Backfilled only by new votes — existing run_votes rows have no matching arms.
+CREATE TABLE IF NOT EXISTS run_arms (
+  id               BIGSERIAL PRIMARY KEY,
+  run_vote_id      BIGINT NOT NULL REFERENCES run_votes(id) ON DELETE CASCADE,
+  run_uuid         TEXT NOT NULL,                  -- denormalized for lookups without a join
+  user_id          TEXT NOT NULL,                  -- denormalized; matches run_votes.user_id
+  slug             TEXT NOT NULL,                  -- gateway slug (validated against MODEL_CATALOG at write time)
+  blind_label      TEXT NOT NULL,                  -- A, B, ...
+  is_winner        BOOLEAN NOT NULL DEFAULT FALSE,
+  decision         TEXT,                           -- EMBOLIZATION | SURGERY | CONSERVATIVE | IMAGING_FIRST
+  urgency          TEXT,                           -- IMMEDIATE | URGENT_2H | SEMI_ELECTIVE
+  target_vessel    TEXT,
+  embolic_agent    TEXT,
+  alternative_plan TEXT,
+  rationale        TEXT,
+  red_flags        JSONB,                          -- array of strings (max 4 per schema)
+  confidence       INTEGER,                        -- 0-100
+  latency_ms       INTEGER,
+  status           TEXT NOT NULL DEFAULT 'finished', -- finished | error | pending
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS run_arms_run_vote_idx ON run_arms(run_vote_id);
+CREATE INDEX IF NOT EXISTS run_arms_slug_idx ON run_arms(slug);
+CREATE INDEX IF NOT EXISTS run_arms_winner_idx ON run_arms(slug) WHERE is_winner = TRUE;

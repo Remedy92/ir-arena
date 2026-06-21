@@ -187,6 +187,14 @@ export default function RunPage() {
       urgency: slot.object?.urgency ?? null,
       targetVessel: slot.object?.targetVessel ?? null,
       embolicAgent: slot.object?.embolicAgent ?? null,
+      alternativePlan: slot.object?.alternativePlan ?? null,
+      rationale: slot.object?.rationale ?? null,
+      redFlags:
+        slot.object?.redFlags
+          ? slot.object.redFlags.filter(
+              (r): r is string => typeof r === 'string',
+            )
+          : null,
       confidence:
         typeof slot.object?.confidence === 'number'
           ? slot.object.confidence

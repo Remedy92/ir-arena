@@ -15,6 +15,9 @@ const modelSnapshotSchema = z.object({
   urgency: z.string().trim().max(40).nullable(),
   targetVessel: z.string().trim().max(300).nullable(),
   embolicAgent: z.string().trim().max(300).nullable(),
+  alternativePlan: z.string().trim().max(800).nullable(),
+  rationale: z.string().trim().max(800).nullable(),
+  redFlags: z.array(z.string().trim().min(1).max(200)).max(4).nullable(),
   confidence: z.number().int().min(0).max(100).nullable(),
   latencyMs: z.number().int().min(0).max(600000).nullable(),
   status: z.enum(['finished', 'error', 'pending']),
@@ -55,26 +58,57 @@ export async function POST(req: Request) {
       return Response.json({ error: 'invalid_winner' }, { status: 400 });
     }
 
+    const modelsJson = JSON.stringify(input.models);
     const rows = await getSql()`
-      INSERT INTO run_votes (
-        user_id, run_uuid, case_id, case_text, reasoning,
-        blinded_at_vote, winner_slug, winner_label, models
+      WITH upserted AS (
+        INSERT INTO run_votes (
+          user_id, run_uuid, case_id, case_text, reasoning,
+          blinded_at_vote, winner_slug, winner_label, models
+        )
+        VALUES (
+          ${userId}, ${input.runUuid}, ${input.caseId}, ${input.caseText}, ${input.reasoning},
+          ${input.blindedAtVote}, ${input.winnerSlug}, ${input.winnerLabel},
+          ${modelsJson}::jsonb
+        )
+        ON CONFLICT (user_id, run_uuid) DO UPDATE SET
+          case_id = EXCLUDED.case_id,
+          case_text = EXCLUDED.case_text,
+          reasoning = EXCLUDED.reasoning,
+          blinded_at_vote = EXCLUDED.blinded_at_vote,
+          winner_slug = EXCLUDED.winner_slug,
+          winner_label = EXCLUDED.winner_label,
+          models = EXCLUDED.models,
+          updated_at = NOW()
+        RETURNING id
+      ),
+      cleared AS (
+        -- Re-saving a run fully replaces its arm rows.
+        DELETE FROM run_arms WHERE run_vote_id = (SELECT id FROM upserted)
       )
-      VALUES (
-        ${userId}, ${input.runUuid}, ${input.caseId}, ${input.caseText}, ${input.reasoning},
-        ${input.blindedAtVote}, ${input.winnerSlug}, ${input.winnerLabel},
-        ${JSON.stringify(input.models)}::jsonb
+      INSERT INTO run_arms (
+        run_vote_id, run_uuid, user_id, slug, blind_label, is_winner,
+        decision, urgency, target_vessel, embolic_agent,
+        alternative_plan, rationale, red_flags, confidence, latency_ms, status
       )
-      ON CONFLICT (user_id, run_uuid) DO UPDATE SET
-        case_id = EXCLUDED.case_id,
-        case_text = EXCLUDED.case_text,
-        reasoning = EXCLUDED.reasoning,
-        blinded_at_vote = EXCLUDED.blinded_at_vote,
-        winner_slug = EXCLUDED.winner_slug,
-        winner_label = EXCLUDED.winner_label,
-        models = EXCLUDED.models,
-        updated_at = NOW()
-      RETURNING id
+      SELECT
+        (SELECT id FROM upserted),
+        ${input.runUuid},
+        ${userId},
+        arm.value->>'slug',
+        arm.value->>'blind_label',
+        (arm.value->>'slug') = ${input.winnerSlug},
+        arm.value->>'decision',
+        arm.value->>'urgency',
+        arm.value->>'target_vessel',
+        arm.value->>'embolic_agent',
+        arm.value->>'alternative_plan',
+        arm.value->>'rationale',
+        arm.value->'red_flags',
+        NULLIF(arm.value->>'confidence', '')::int,
+        NULLIF(arm.value->>'latency_ms', '')::int,
+        arm.value->>'status'
+      FROM jsonb_array_elements(${modelsJson}::jsonb) AS arm(value)
+      RETURNING run_vote_id AS id
     `;
 
     return Response.json({ id: Number(rows[0]?.id ?? 0), saved: true });

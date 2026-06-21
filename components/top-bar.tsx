@@ -56,6 +56,13 @@ export function TopBar({ mode, isRunning = false }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-3 sm:gap-4">
+        <Link
+          href="/benchmark"
+          className="hidden text-sm text-[#67625B] transition-colors hover:text-[#2E2B29] sm:inline-flex"
+        >
+          Benchmark
+        </Link>
+
         <Badge
           variant="outline"
           className="hidden border-[#EEEDEC] bg-white text-[11px] font-normal tracking-wide text-[#67625B] sm:inline-flex"

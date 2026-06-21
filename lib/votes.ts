@@ -6,7 +6,11 @@ import type { BlindLabel } from './models';
  * shared with the route's zod schema by convention — keep them in sync.
  */
 
-/** Per-arm outcome snapshot stored alongside the pick so it stays interpretable. */
+/** Per-arm outcome snapshot stored alongside the pick so it stays interpretable.
+ *  The wide fields (alternativePlan / rationale / redFlags) are also written
+ *  normalized into the `run_arms` table; the JSONB snapshot is a denormalized
+ *  convenience for the v1 leaderboard. Older votes (saved before the widen)
+ *  will be missing these three keys — readers must treat them as optional. */
 export interface VoteModelSnapshot {
   slug: string;
   label: string;
@@ -15,6 +19,9 @@ export interface VoteModelSnapshot {
   urgency: string | null;
   targetVessel: string | null;
   embolicAgent: string | null;
+  alternativePlan: string | null;
+  rationale: string | null;
+  redFlags: string[] | null;
   confidence: number | null;
   latencyMs: number | null;
   status: 'finished' | 'error' | 'pending';
