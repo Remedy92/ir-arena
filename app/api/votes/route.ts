@@ -2,6 +2,11 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 
 import { verifyFreshSession } from '@/lib/auth/dal';
+import { checkOrigin } from '@/lib/auth/csrf';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+} from '@/lib/auth/rate-limit';
 import { getSql } from '@/lib/db';
 import { isKnownModelSlug } from '@/lib/models';
 import { TRIAGE_REQUEST_MAX_CASE_LENGTH } from '@/lib/schema';
@@ -47,6 +52,18 @@ export async function POST(req: Request) {
       return Response.json({ error: 'unauthorized' }, { status: 401 });
     }
     const userId = session.user.id;
+
+    if (!checkOrigin(req)) {
+      return Response.json({ error: 'forbidden' }, { status: 403 });
+    }
+
+    const voteLimit = checkRateLimit(`votes:${userId}`, {
+      max: 20,
+      windowMs: 60_000,
+    });
+    if (!voteLimit.ok) {
+      return rateLimitResponse(voteLimit.retryAfterMs);
+    }
 
     const body: unknown = await req.json();
     const input = requestSchema.parse(body);

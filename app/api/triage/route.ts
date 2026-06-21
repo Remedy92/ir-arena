@@ -4,6 +4,11 @@ import { ZodError } from 'zod';
 
 import { createTriageModel } from '@/lib/ai-model';
 import { verifyFreshSession } from '@/lib/auth/dal';
+import { checkOrigin } from '@/lib/auth/csrf';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+} from '@/lib/auth/rate-limit';
 import { SYSTEM_PROMPT } from '@/lib/prompts';
 import { triageRequestSchema } from '@/lib/schema';
 import {
@@ -56,6 +61,18 @@ export async function POST(req: Request) {
       return Response.json({ error: 'unauthorized' }, { status: 401 });
     }
     const userId = session.user.id;
+
+    if (!checkOrigin(req)) {
+      return Response.json({ error: 'forbidden' }, { status: 403 });
+    }
+
+    const triageLimit = checkRateLimit(`triage:${userId}`, {
+      max: 20,
+      windowMs: 60_000,
+    });
+    if (!triageLimit.ok) {
+      return rateLimitResponse(triageLimit.retryAfterMs);
+    }
 
     const contentType = req.headers.get('content-type') ?? '';
     if (!contentType.toLowerCase().includes('application/json')) {

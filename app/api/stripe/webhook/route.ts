@@ -37,6 +37,13 @@ export async function POST(req: Request) {
     return Response.json({ error: 'webhook not configured' }, { status: 500 });
   }
 
+  // Reject oversized payloads before reading the body. Stripe webhook payloads
+  // are typically <100KB; a 256KB cap is generous while bounding memory use.
+  const contentLength = parseInt(req.headers.get('content-length') ?? '0', 10);
+  if (contentLength > 256 * 1024) {
+    return Response.json({ error: 'payload too large' }, { status: 413 });
+  }
+
   // Raw body is required for signature verification — App Router does not parse
   // the request body, so req.text() yields the exact bytes Stripe signed.
   const rawBody = await req.text();
@@ -49,6 +56,11 @@ export async function POST(req: Request) {
     return Response.json({ error: 'invalid signature' }, { status: 400 });
   }
 
+  console.info('[stripe/webhook] received event:', {
+    id: event.id,
+    type: event.type,
+  });
+
   try {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -59,6 +71,14 @@ export async function POST(req: Request) {
       }
     } else if (event.type === 'checkout.session.async_payment_succeeded') {
       await creditFromSession(event.data.object as Stripe.Checkout.Session);
+    } else if (event.type === 'checkout.session.async_payment_failed') {
+      const session = event.data.object as Stripe.Checkout.Session;
+      console.warn('[stripe/webhook] async payment failed:', {
+        eventId: event.id,
+        sessionId: session.id,
+        userId:
+          session.metadata?.userId ?? session.client_reference_id ?? null,
+      });
     }
   } catch (error) {
     console.error('[stripe/webhook] handling failed:', error);

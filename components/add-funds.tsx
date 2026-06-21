@@ -26,8 +26,15 @@ export function AddFunds() {
       });
       const data = response.ok ? await response.json() : null;
       if (data?.url) {
-        window.location.assign(data.url);
-        return; // navigating away; keep the spinner state
+        try {
+          const target = new URL(data.url);
+          if (target.hostname.endsWith('.stripe.com')) {
+            window.location.assign(data.url);
+            return; // navigating away; keep the spinner state
+          }
+        } catch {
+          // invalid URL — fall through to error
+        }
       }
       throw new Error('no checkout url');
     } catch {

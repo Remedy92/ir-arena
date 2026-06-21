@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
 import { verifyFreshSession } from '@/lib/auth/dal';
+import { checkOrigin } from '@/lib/auth/csrf';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+} from '@/lib/auth/rate-limit';
 import {
   BILLING_APP_ID,
   BILLING_CURRENCY,
@@ -35,6 +40,18 @@ export async function POST(req: Request) {
       return Response.json({ error: 'unauthorized' }, { status: 401 });
     }
     const userId = session.user.id;
+
+    if (!checkOrigin(req)) {
+      return Response.json({ error: 'forbidden' }, { status: 403 });
+    }
+
+    const checkoutLimit = checkRateLimit(`checkout:${userId}`, {
+      max: 5,
+      windowMs: 60_000,
+    });
+    if (!checkoutLimit.ok) {
+      return rateLimitResponse(checkoutLimit.retryAfterMs);
+    }
 
     const body = await req.json();
     const { amountUsd } = checkoutRequestSchema.parse(body);

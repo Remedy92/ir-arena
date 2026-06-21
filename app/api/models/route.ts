@@ -1,5 +1,10 @@
 import { gateway } from 'ai';
 
+import {
+  checkRateLimit,
+  getClientIp,
+  rateLimitResponse,
+} from '@/lib/auth/rate-limit';
 import { MODEL_SLUGS } from '@/lib/models';
 
 // Node.js runtime to match the rest of the gateway-backed routes.
@@ -12,7 +17,15 @@ export const runtime = 'nodejs';
  * (returns the full catalog) when no key is configured or the gateway is
  * unreachable, so the picker is never left empty in local dev.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const ipLimit = checkRateLimit(`models:${getClientIp(req)}`, {
+    max: 30,
+    windowMs: 60_000,
+  });
+  if (!ipLimit.ok) {
+    return rateLimitResponse(ipLimit.retryAfterMs);
+  }
+
   try {
     const { models } = await gateway.getAvailableModels();
     const catalog = new Set(MODEL_SLUGS);
