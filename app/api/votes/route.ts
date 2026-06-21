@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { revalidatePath } from 'next/cache';
 
 import { verifyFreshSession } from '@/lib/auth/dal';
 import { getSql } from '@/lib/db';
@@ -110,6 +111,9 @@ export async function POST(req: Request) {
       FROM jsonb_array_elements(${modelsJson}::jsonb) AS arm(value)
       RETURNING run_vote_id AS id
     `;
+
+    revalidatePath('/benchmark');
+    revalidatePath('/api/leaderboard');
 
     return Response.json({ id: Number(rows[0]?.id ?? 0), saved: true });
   } catch (error) {

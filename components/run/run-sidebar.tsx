@@ -28,7 +28,6 @@ interface RunSidebarProps {
   winnerLabel: BlindLabel | null;
   saveState: VoteSaveState;
   saveError?: string;
-  onSaveVote: () => void;
 }
 
 const AGREEMENT_LABELS: Record<ConsensusField, string> = {
@@ -82,7 +81,6 @@ export function RunSidebar({
   winnerLabel,
   saveState,
   saveError,
-  onSaveVote,
 }: RunSidebarProps) {
   const votingOpen = !isRunning && finishedCount > 0;
   const winnerSlot = winnerLabel
@@ -210,7 +208,7 @@ export function RunSidebar({
         </div>
       ) : null}
 
-      {/* Your verdict — winner pick + save */}
+      {/* Your verdict — winner pick */}
       {votingOpen ? (
         <div className="border-t border-[#EEEDEC] px-4 py-3">
           <h3 className="mb-2 text-[10px] font-medium tracking-wider text-[#67625B] uppercase">
@@ -225,7 +223,11 @@ export function RunSidebar({
                   {winnerName}
                 </span>
               </div>
-              {saveState === 'saved' ? (
+              {saveState === 'saving' ? (
+                <span className="inline-flex items-center gap-1.5 rounded-[10px] bg-[#F0EFED] px-2.5 py-1.5 text-[11px] font-medium text-[#67625B]">
+                  Saving...
+                </span>
+              ) : saveState === 'saved' ? (
                 <div className="flex flex-col gap-1.5">
                   <span className="inline-flex items-center gap-1.5 rounded-[10px] bg-[#EDF3EC] px-2.5 py-1.5 text-[11px] font-medium text-[#346538]">
                     <CheckIcon className="size-3" />
@@ -238,23 +240,11 @@ export function RunSidebar({
                     See benchmark →
                   </Link>
                 </div>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={onSaveVote}
-                  disabled={saveState === 'saving'}
-                  className="h-9 w-full rounded-[12px] bg-[#2E2B29] text-sm font-medium text-white hover:bg-[#2E2B29]/90"
-                >
-                  {saveState === 'saving'
-                    ? 'Saving…'
-                    : revealModels
-                      ? 'Save pick'
-                      : 'Save pick & reveal'}
-                </Button>
-              )}
+              ) : null}
               {saveState === 'error' ? (
                 <span className="text-[11px] text-[#9F2F2D]">
-                  Couldn’t save{saveError ? `: ${saveError}` : ''}. Try again.
+                  Couldn’t save{saveError ? `: ${saveError}` : ''}. Tap a card
+                  to retry.
                 </span>
               ) : null}
             </div>
@@ -263,7 +253,7 @@ export function RunSidebar({
               Which model handled it best? Tap{' '}
               <span className="font-medium text-[#2E2B29]">Pick winner</span> on a
               card
-              {revealModels ? '.' : ' — identities stay hidden until you save.'}
+              {revealModels ? '.' : ' to save and reveal.'}
             </p>
           )}
         </div>

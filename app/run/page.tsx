@@ -70,6 +70,7 @@ export default function RunPage() {
   const [winnerLabel, setWinnerLabel] = useState<BlindLabel | null>(null);
   const [saveState, setSaveState] = useState<VoteSaveState>('idle');
   const [saveError, setSaveError] = useState<string | undefined>();
+  const savingRef = useRef(false);
 
   // Load the configured comparison once, then auto-start the run.
   useEffect(() => {
@@ -155,29 +156,26 @@ export default function RunPage() {
     setWinnerLabel(null);
     setSaveState('idle');
     setSaveError(undefined);
+    savingRef.current = false;
     setRunUuid(newRunUuid());
     setRunId((current) => current + 1);
   }, [models]);
 
   const votingEnabled = runId > 0 && !isRunning && finishedCount > 0;
 
-  const handlePickWinner = useCallback((label: BlindLabel) => {
-    setWinnerLabel((previous) => (previous === label ? null : label));
-    setSaveState('idle');
-    setSaveError(undefined);
-  }, []);
-
-  const handleSaveVote = useCallback(async () => {
-    if (!winnerLabel) {
+  const handlePickWinner = useCallback(async (label: BlindLabel) => {
+    if (savingRef.current || (saveState === 'saved' && winnerLabel === label)) {
       return;
     }
     const winnerSlot = slotStateList.find(
-      (slot) => slot.blindLabel === winnerLabel,
+      (slot) => slot.blindLabel === label,
     );
     if (!winnerSlot || !winnerSlot.finished) {
       return;
     }
 
+    savingRef.current = true;
+    setWinnerLabel(label);
     const blinded = !revealModels;
     const modelSnapshots: VoteModelSnapshot[] = slotStateList.map((slot) => ({
       slug: slot.model.slug,
@@ -212,7 +210,7 @@ export default function RunPage() {
       reasoning,
       blindedAtVote: blinded,
       winnerSlug: winnerSlot.model.slug,
-      winnerLabel,
+      winnerLabel: label,
       models: modelSnapshots,
     });
     if (result.ok) {
@@ -224,7 +222,9 @@ export default function RunPage() {
       setSaveState('error');
       setSaveError(result.error);
     }
+    savingRef.current = false;
   }, [
+    saveState,
     winnerLabel,
     slotStateList,
     revealModels,
@@ -304,7 +304,6 @@ export default function RunPage() {
           winnerLabel={winnerLabel}
           saveState={saveState}
           saveError={saveError}
-          onSaveVote={handleSaveVote}
         />
 
         <div className="min-w-0 flex-1 md:overflow-y-auto">
@@ -322,6 +321,7 @@ export default function RunPage() {
               substitutionFootnote={substitutionFootnote}
               votingEnabled={votingEnabled}
               winnerLabel={winnerLabel}
+              saveState={saveState}
               onPickWinner={handlePickWinner}
             />
           ) : null}

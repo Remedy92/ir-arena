@@ -19,6 +19,7 @@ import {
   type ModelCardSlotState,
 } from '@/lib/use-triage-stream';
 import { cn } from '@/lib/utils';
+import type { VoteSaveState } from '@/lib/votes';
 
 interface LiveModelCardProps {
   blindLabel: BlindLabel;
@@ -34,6 +35,8 @@ interface LiveModelCardProps {
   votingEnabled?: boolean;
   /** This card is the user's current winner pick. */
   isWinner?: boolean;
+  /** Persistence lifecycle for the current pick. */
+  saveState?: VoteSaveState;
   /** Toggle this card as the winner. */
   onPickWinner?: (label: BlindLabel) => void;
 }
@@ -82,6 +85,7 @@ export function LiveModelCard({
   onStateChange,
   votingEnabled = false,
   isWinner = false,
+  saveState = 'idle',
   onPickWinner,
 }: LiveModelCardProps) {
   const {
@@ -114,6 +118,7 @@ export function LiveModelCard({
         ? 'Error'
         : 'Idle';
   const canPick = votingEnabled && finished && !rawError;
+  const isSavingWinner = isWinner && saveState === 'saving';
 
   return (
     <motion.div
@@ -300,22 +305,26 @@ export function LiveModelCard({
           <button
             type="button"
             onClick={() => onPickWinner?.(blindLabel)}
+            disabled={saveState === 'saving'}
             aria-pressed={isWinner}
             aria-label={
-              isWinner
-                ? `${headerLabel} is your pick — tap to clear`
-                : `Pick ${headerLabel} as the best triage`
+              isSavingWinner
+                ? `Saving ${headerLabel} as the best triage`
+                : isWinner
+                  ? `${headerLabel} is your saved pick`
+                  : `Pick ${headerLabel} as the best triage`
             }
             className={cn(
               'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67625B]',
+              saveState === 'saving' && 'cursor-wait opacity-75',
               isWinner
                 ? 'bg-[#2E2B29] text-white'
                 : 'border border-[#D8D5D0] text-[#67625B] hover:border-[#2E2B29] hover:text-[#2E2B29]',
             )}
           >
             <TrophyIcon className="size-3" />
-            {isWinner ? 'Winner' : 'Pick winner'}
+            {isSavingWinner ? 'Saving...' : isWinner ? 'Winner' : 'Pick winner'}
           </button>
         ) : (
           <AnimatePresence mode="wait" initial={false}>

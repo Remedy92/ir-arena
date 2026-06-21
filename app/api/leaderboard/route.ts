@@ -19,9 +19,10 @@ export async function GET() {
     return new Response(JSON.stringify(body), {
       headers: {
         'content-type': 'application/json',
-        // Public + short browser cache + longer CDN cache + stale revalidation.
+        // Public aggregate, but keep browser navigations honest after a vote.
+        // Server/CDN cache is still governed by the route's revalidate window.
         'cache-control':
-          'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+          'public, max-age=0, must-revalidate, s-maxage=300, stale-while-revalidate=600',
       },
     });
   } catch (error) {

@@ -9,6 +9,7 @@ import type { CaseFields } from '@/lib/cases';
 import type { BlindLabel, ModelConfig } from '@/lib/models';
 import type { ReasoningEffort } from '@/lib/reasoning';
 import type { ModelCardSlotState } from '@/lib/use-triage-stream';
+import type { VoteSaveState } from '@/lib/votes';
 
 interface ArenaSlot {
   model: ModelConfig;
@@ -28,6 +29,7 @@ interface RunResultsProps {
   substitutionFootnote?: string;
   votingEnabled: boolean;
   winnerLabel: BlindLabel | null;
+  saveState: VoteSaveState;
   onPickWinner: (label: BlindLabel) => void;
 }
 
@@ -54,6 +56,7 @@ export function RunResults({
   substitutionFootnote,
   votingEnabled,
   winnerLabel,
+  saveState,
   onPickWinner,
 }: RunResultsProps) {
   const total = shuffledSlots.length;
@@ -80,6 +83,7 @@ export function RunResults({
                 onStateChange={getStableHandler(slot.blindLabel)}
                 votingEnabled={votingEnabled}
                 isWinner={winnerLabel === slot.blindLabel}
+                saveState={saveState}
                 onPickWinner={onPickWinner}
               />
             ))}
