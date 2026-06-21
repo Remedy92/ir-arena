@@ -95,17 +95,17 @@ export async function POST(req: Request) {
         ${input.runUuid},
         ${userId},
         arm.value->>'slug',
-        arm.value->>'blind_label',
+        arm.value->>'blindLabel',
         (arm.value->>'slug') = ${input.winnerSlug},
         arm.value->>'decision',
         arm.value->>'urgency',
-        arm.value->>'target_vessel',
-        arm.value->>'embolic_agent',
-        arm.value->>'alternative_plan',
+        arm.value->>'targetVessel',
+        arm.value->>'embolicAgent',
+        arm.value->>'alternativePlan',
         arm.value->>'rationale',
-        arm.value->'red_flags',
+        arm.value->'redFlags',
         NULLIF(arm.value->>'confidence', '')::int,
-        NULLIF(arm.value->>'latency_ms', '')::int,
+        NULLIF(arm.value->>'latencyMs', '')::int,
         arm.value->>'status'
       FROM jsonb_array_elements(${modelsJson}::jsonb) AS arm(value)
       RETURNING run_vote_id AS id

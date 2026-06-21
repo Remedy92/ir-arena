@@ -10,9 +10,12 @@ import { getLeaderboardData } from '@/lib/leaderboard-data';
 import type { LeaderboardData } from '@/lib/leaderboard';
 
 export const metadata: Metadata = {
-  title: 'Benchmark · IR Arena',
+  title: 'Benchmark',
   description:
     'Aggregate win-rate benchmark for the blinded interventional radiology triage comparison. Wilson 95% confidence intervals. Synthetic cases only.',
+  alternates: {
+    canonical: '/benchmark',
+  },
 };
 
 // ISR: refresh the aggregate every 5 minutes. The API route shares this
