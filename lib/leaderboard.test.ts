@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   formatCiRange,
   formatConfidence,
+  formatCost,
   formatLatency,
   formatPercent,
+  formatReasoningEffort,
+  formatReasoningSummary,
   isLowSample,
   LOW_SAMPLE_THRESHOLD,
   wilsonInterval,
@@ -118,6 +121,35 @@ describe('formatters', () => {
     expect(formatConfidence(85)).toBe('85');
     expect(formatConfidence(85.4)).toBe('85');
     expect(formatConfidence(null)).toBe('—');
+  });
+
+  it('formatCost renders sub-cent costs in cents and larger costs in dollars', () => {
+    expect(formatCost(null)).toBe('—');
+    expect(formatCost(0)).toBe('<0.01¢');
+    expect(formatCost(50)).toBe('<0.01¢');
+    expect(formatCost(10_000)).toBe('1¢');
+    expect(formatCost(12_000)).toBe('1.20¢');
+    expect(formatCost(750_000)).toBe('75¢');
+    expect(formatCost(1_500_000)).toBe('$1.50');
+  });
+
+  it('formatReasoningEffort maps known slugs to labels and title-cases unknown ones', () => {
+    expect(formatReasoningEffort('medium')).toBe('Medium');
+    expect(formatReasoningEffort('xhigh')).toBe('Max');
+    expect(formatReasoningEffort('provider-default')).toBe('Default');
+    expect(formatReasoningEffort(null)).toBe('—');
+    expect(formatReasoningEffort('custom-effort')).toBe('Custom-effort');
+  });
+
+  it('formatReasoningSummary shows the top effort alone or with a count of others', () => {
+    expect(formatReasoningSummary([], null)).toBe('—');
+    expect(formatReasoningSummary(['medium'], 'medium')).toBe('Medium');
+    expect(formatReasoningSummary(['medium', 'high'], 'medium')).toBe(
+      'Medium · 1 other',
+    );
+    expect(
+      formatReasoningSummary(['medium', 'low', 'high'], 'medium'),
+    ).toBe('Medium · 2 others');
   });
 });
 

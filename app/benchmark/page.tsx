@@ -3,8 +3,11 @@ import type { Metadata } from 'next';
 import { DisclaimerStrip } from '@/components/disclaimer-strip';
 import { LeaderboardTable } from '@/components/leaderboard/leaderboard-table';
 import { MethodologyFooter } from '@/components/leaderboard/methodology-footer';
+import { SpeedAccuracyChart } from '@/components/leaderboard/speed-accuracy-chart';
+import { Top3Podium } from '@/components/leaderboard/top-3-podium';
 import { TopBar } from '@/components/top-bar';
 import { getLeaderboardData } from '@/lib/leaderboard-data';
+import type { LeaderboardData } from '@/lib/leaderboard';
 
 export const metadata: Metadata = {
   title: 'Benchmark · IR Arena',
@@ -21,7 +24,7 @@ export default async function BenchmarkPage() {
   // not be available then. Fall back to the empty state so the build never
   // breaks on a missing/misconfigured DB — the page revalidates every 5 min
   // and picks up real data once the DB is reachable.
-  let data;
+  let data: LeaderboardData;
   try {
     data = await getLeaderboardData();
   } catch (error) {
@@ -60,7 +63,11 @@ export default async function BenchmarkPage() {
             </p>
           </header>
 
+          <Top3Podium models={data.models} />
+
           <LeaderboardTable data={data} />
+
+          <SpeedAccuracyChart data={data} />
 
           <MethodologyFooter />
         </div>

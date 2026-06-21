@@ -7,16 +7,17 @@ import {
 import { getModelBySlug, hasSubstitutionFootnote } from '@/lib/models';
 
 /**
- * Server-only leaderboard aggregation. Querys `run_votes` (wins, blinded split)
- * and `run_arms` (appearances, per-arm averages) in parallel, joins to the
- * model catalog in TypeScript, and computes Wilson 95% CIs. Never selects
- * `user_id` or `case_text` into the response.
+ * Server-only leaderboard aggregation. Querys `run_votes` (wins, blinded split,
+ * reasoning effort), `run_arms` (appearances, per-arm averages), and
+ * `usage_events` (avg cost per call) in parallel, joins to the model catalog
+ * in TypeScript, and computes Wilson 95% CIs. Never selects `user_id` or
+ * `case_text` into the response.
  *
  * Empty DB → returns `{ models: [], totalRuns: 0, totalVoters: 0 }` so the UI
  * can render the empty state.
  */
 export async function getLeaderboardData(): Promise<LeaderboardData> {
-  const [aggRows, totalsRows] = await Promise.all([
+  const [aggRows, costRows, reasoningRows, totalsRows] = await Promise.all([
     getSql()`
       WITH wins AS (
         SELECT winner_slug AS slug,
@@ -32,7 +33,9 @@ export async function getLeaderboardData(): Promise<LeaderboardData> {
                AVG(confidence) FILTER
                  (WHERE is_winner AND confidence IS NOT NULL) AS avg_winner_confidence,
                AVG(latency_ms) FILTER
-                 (WHERE is_winner AND latency_ms IS NOT NULL) AS avg_winner_latency_ms
+                 (WHERE is_winner AND latency_ms IS NOT NULL) AS avg_winner_latency_ms,
+               AVG(latency_ms) FILTER
+                 (WHERE latency_ms IS NOT NULL) AS avg_latency_ms
         FROM run_arms
         GROUP BY slug
       )
@@ -43,9 +46,27 @@ export async function getLeaderboardData(): Promise<LeaderboardData> {
         COALESCE(w.blinded_wins, 0) AS blinded_wins,
         COALESCE(w.revealed_wins, 0) AS revealed_wins,
         a.avg_winner_confidence AS avg_winner_confidence,
-        a.avg_winner_latency_ms AS avg_winner_latency_ms
+        a.avg_winner_latency_ms AS avg_winner_latency_ms,
+        a.avg_latency_ms AS avg_latency_ms
       FROM wins w
       FULL OUTER JOIN appearances a ON w.slug = a.slug
+    `,
+    getSql()`
+      SELECT model_slug AS slug,
+             AVG(cost_micro_usd) AS avg_cost_micro_usd,
+             COUNT(*) AS call_count
+      FROM usage_events
+      WHERE status = 'settled' AND cost_micro_usd IS NOT NULL
+      GROUP BY model_slug
+    `,
+    getSql()`
+      SELECT ra.slug AS slug,
+             rv.reasoning AS reasoning,
+             COUNT(*) AS run_count
+      FROM run_arms ra
+      JOIN run_votes rv ON ra.run_vote_id = rv.id
+      WHERE rv.reasoning IS NOT NULL
+      GROUP BY ra.slug, rv.reasoning
     `,
     getSql()`
       SELECT
@@ -54,6 +75,35 @@ export async function getLeaderboardData(): Promise<LeaderboardData> {
       FROM run_votes
     `,
   ]);
+
+  // Index cost by slug for fast lookup.
+  const costBySlug = new Map<
+    string,
+    { avgCostMicroUsd: number; callCount: number }
+  >();
+  for (const row of costRows) {
+    costBySlug.set(String(row.slug), {
+      avgCostMicroUsd: toNumber(row.avg_cost_micro_usd),
+      callCount: toNumber(row.call_count),
+    });
+  }
+
+  // Index reasoning by slug → list of { effort, runCount }, sorted by runCount desc.
+  const reasoningBySlug = new Map<
+    string,
+    Array<{ effort: string; runCount: number }>
+  >();
+  for (const row of reasoningRows) {
+    const slug = String(row.slug);
+    const effort = String(row.reasoning);
+    const runCount = toNumber(row.run_count);
+    const list = reasoningBySlug.get(slug) ?? [];
+    list.push({ effort, runCount });
+    reasoningBySlug.set(slug, list);
+  }
+  for (const list of reasoningBySlug.values()) {
+    list.sort((a, b) => b.runCount - a.runCount);
+  }
 
   const models: LeaderboardRow[] = [];
   for (const row of aggRows) {
@@ -67,6 +117,12 @@ export async function getLeaderboardData(): Promise<LeaderboardData> {
     const appearances = toNumber(row.appearances);
     const winRate = appearances > 0 ? wins / appearances : 0;
     const { ciLow, ciHigh } = wilsonInterval(wins, appearances);
+
+    const cost = costBySlug.get(slug);
+    const reasoning = reasoningBySlug.get(slug) ?? [];
+    const reasoningEfforts = reasoning.map((r) => r.effort);
+    const topReasoningEffort =
+      reasoning.length > 0 ? reasoning[0].effort : null;
 
     models.push({
       slug: config.slug,
@@ -87,6 +143,14 @@ export async function getLeaderboardData(): Promise<LeaderboardData> {
         row.avg_winner_latency_ms !== null
           ? Math.round(toNumber(row.avg_winner_latency_ms))
           : null,
+      avgLatencyMs:
+        row.avg_latency_ms !== null
+          ? Math.round(toNumber(row.avg_latency_ms))
+          : null,
+      avgCostMicroUsd: cost ? cost.avgCostMicroUsd : null,
+      callCount: cost ? cost.callCount : 0,
+      reasoningEfforts,
+      topReasoningEffort,
       blindedWins: toNumber(row.blinded_wins),
       revealedWins: toNumber(row.revealed_wins),
     });

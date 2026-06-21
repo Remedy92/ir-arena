@@ -19,7 +19,9 @@ import {
 } from '@/components/ui/tooltip';
 import {
   formatConfidence,
+  formatCost,
   formatLatency,
+  formatReasoningSummary,
   isLowSample,
   type LeaderboardData,
   type LeaderboardRow,
@@ -77,6 +79,16 @@ export function LeaderboardTable({ data }: LeaderboardTableProps) {
                 className={cn(TH_BASE, 'text-right hidden md:table-cell')}
               >
                 Avg latency
+              </TableHead>
+              <TableHead
+                className={cn(TH_BASE, 'text-right hidden md:table-cell')}
+              >
+                Avg cost
+              </TableHead>
+              <TableHead
+                className={cn(TH_BASE, 'hidden lg:table-cell')}
+              >
+                Thinking
               </TableHead>
               <TableHead
                 className={cn(TH_BASE, 'text-right hidden lg:table-cell pr-4')}
@@ -164,6 +176,14 @@ function LeaderboardRow({ row, rank }: { row: LeaderboardRow; rank: number }) {
       </TableCell>
       <TableCell className={cn('text-right hidden md:table-cell', TD_MUTED)}>
         {formatLatency(row.avgWinnerLatencyMs)}
+      </TableCell>
+      <TableCell className={cn('text-right hidden md:table-cell', TD_MUTED)}>
+        {formatCost(row.avgCostMicroUsd)}
+      </TableCell>
+      <TableCell className="hidden lg:table-cell">
+        <span className={cn('font-mono text-xs tabular-nums text-[#67625B]')}>
+          {formatReasoningSummary(row.reasoningEfforts, row.topReasoningEffort)}
+        </span>
       </TableCell>
       <TableCell
         className={cn('text-right hidden lg:table-cell pr-4', TD_MUTED)}

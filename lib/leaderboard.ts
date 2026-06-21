@@ -30,6 +30,16 @@ export interface LeaderboardRow {
   avgWinnerConfidence: number | null;
   /** Average latency (ms) of the winning arms, or null. */
   avgWinnerLatencyMs: number | null;
+  /** Average latency (ms) of ALL arms (winning or not), or null. Used by the speed-vs-accuracy chart. */
+  avgLatencyMs: number | null;
+  /** Average cost per settled call in micro-USD (1 USD = 1,000,000), or null. From usage_events. */
+  avgCostMicroUsd: number | null;
+  /** Number of settled usage_events rows for this model (cost sample size). */
+  callCount: number;
+  /** Distinct reasoning efforts this model has been run with, from run_votes.reasoning. */
+  reasoningEfforts: string[];
+  /** The most common reasoning effort (mode), or null if no runs. */
+  topReasoningEffort: string | null;
   /** Wins where model identities were hidden at vote time. */
   blindedWins: number;
   /** Wins where model identities were revealed at vote time. */
@@ -97,6 +107,50 @@ export function formatCiRange(ciLow: number, ciHigh: number): string {
 export function formatLatency(ms: number | null | undefined): string {
   if (ms === null || ms === undefined || !Number.isFinite(ms)) return '—';
   return `${Math.round(ms).toLocaleString()}ms`;
+}
+
+/** Micro-USD → human-readable cost. 12000 → "1.2¢", 750000 → "75¢", 1500000 → "$1.50". */
+export function formatCost(microUsd: number | null | undefined): string {
+  if (microUsd === null || microUsd === undefined || !Number.isFinite(microUsd)) {
+    return '—';
+  }
+  if (microUsd < 100) return '<0.01¢';
+  const cents = microUsd / 10_000;
+  if (cents < 100) {
+    // Whole cents → no decimal; fractional → 1 or 2 decimals.
+    const isWhole = Number.isInteger(cents);
+    if (isWhole) return `${cents}¢`;
+    return `${cents.toFixed(cents < 10 ? 2 : 1)}¢`;
+  }
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+/** Reasoning effort slug → human label. Falls back to title-case. */
+export function formatReasoningEffort(
+  effort: string | null | undefined,
+): string {
+  if (!effort) return '—';
+  const labels: Record<string, string> = {
+    'provider-default': 'Default',
+    none: 'None',
+    minimal: 'Minimal',
+    low: 'Low',
+    medium: 'Medium',
+    high: 'High',
+    xhigh: 'Max',
+  };
+  return labels[effort] ?? effort.charAt(0).toUpperCase() + effort.slice(1);
+}
+
+/** Array of reasoning efforts → compact summary like "Medium · 2 others". */
+export function formatReasoningSummary(
+  efforts: string[],
+  top: string | null,
+): string {
+  if (efforts.length === 0 || !top) return '—';
+  const topLabel = formatReasoningEffort(top);
+  if (efforts.length === 1) return topLabel;
+  return `${topLabel} · ${efforts.length - 1} other${efforts.length - 1 > 1 ? 's' : ''}`;
 }
 
 /** 0..100 → "85". null → "—". */
